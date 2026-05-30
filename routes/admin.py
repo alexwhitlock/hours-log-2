@@ -352,6 +352,14 @@ def sync():
     if not config.get('D4H_API_TOKEN'):
         flash('D4H credentials not configured.', 'error')
         return redirect(url_for('admin.index'))
+    force = request.form.get('force') == '1'
+    if force:
+        db = get_db()
+        from models import D4HHours, D4HMember
+        db.query(D4HHours).delete()
+        db.query(D4HMember).update({'count_rolling_hours': None})
+        db.commit()
+        logger.info('Force resync: cleared D4HHours and reset rolling hours')
     _sync_status.update({
         'running': True, 'result': None, 'error': None,
         'phase': 'starting', 'message': 'Starting…', 'percent': 0,
