@@ -57,8 +57,9 @@ def _fetch_tagged_activities(config: dict, tag_id: int, atype: str) -> dict:
         data = client._get(f'/team/{client.team_id}/{atype}',
                            {'size': 1, 'page': 0, 'tag_id': tag_id})
         total = data.get('totalSize', 0)
+        logger.debug(f'Tag cache: {atype} tag={tag_id} ({hour_type}) total={total}')
     except Exception as e:
-        logger.error(f'D4H sync: count failed {atype} tag={tag_id}: {e}')
+        logger.error(f'D4H sync: count failed {atype} tag={tag_id}: {e}', exc_info=True)
         return result
 
     total_pages = (total + page_size - 1) // page_size
@@ -68,7 +69,7 @@ def _fetch_tagged_activities(config: dict, tag_id: int, atype: str) -> dict:
                                {'size': page_size, 'page': page, 'tag_id': tag_id})
             batch = data.get('results', [])
         except Exception as e:
-            logger.error(f'D4H sync: page {page} failed {atype} tag={tag_id}: {e}')
+            logger.error(f'D4H sync: page {page} failed {atype} tag={tag_id}: {e}', exc_info=True)
             continue
 
         if not batch:
@@ -83,6 +84,7 @@ def _fetch_tagged_activities(config: dict, tag_id: int, atype: str) -> dict:
         if all((a.get('startsAt') or '') < SYNC_START_DATE for a in batch):
             break
 
+    logger.debug(f'Tag cache: {atype} tag={tag_id} → {len(result)} activities since {SYNC_START_DATE}')
     return result
 
 
@@ -127,7 +129,7 @@ def _fetch_member_attendance(config: dict, member_id: int, tag_cache: dict) -> l
                 'sort': 'startsAt', 'order': 'desc',
             })
         except Exception as e:
-            logger.error(f'D4H sync: attendance failed member {member_id} page {page}: {e}')
+            logger.error(f'D4H sync: attendance failed member {member_id} page {page}: {e}', exc_info=True)
             break
 
         batch = data.get('results', [])
@@ -159,6 +161,7 @@ def _fetch_member_attendance(config: dict, member_id: int, tag_cache: dict) -> l
             break
         page += 1
 
+    logger.debug(f'Attendance member {member_id}: {len(records)} tagged records since {SYNC_START_DATE}')
     return records
 
 
@@ -287,13 +290,18 @@ def sync_hours(config: dict, db, changed_member_ids=None, progress=None) -> dict
                 pct = 26 + int(68 * done / len(to_sync))
                 progress(f'Fetching attendance ({done}/{len(to_sync)} members)…', pct)
 
-    # Bulk upsert — SQLite is local so we can afford per-record inserts efficiently
-    if progress:
-        progress('Saving to database…', 95)
+    total_records = sum(len(v) for v in attendance_by_member.values())
+    logger.info(f'D4H sync: writing {total_records} attendance records for {len(attendance_by_member)} members')
 
+    # Bulk upsert — commit per member so progress stays live
+    total_members = len(attendance_by_member)
     upserted = 0
-    for member_id, records in attendance_by_member.items():
-        for i, rec in enumerate(records):
+    for done_count, (member_id, records) in enumerate(attendance_by_member.items(), 1):
+        if progress:
+            pct = 95 + int(4 * done_count / total_members)
+            progress(f'Saving to database ({done_count}/{total_members})…', pct)
+
+        for rec in records:
             existing = db.query(D4HHours).filter_by(
                 d4h_attendance_id=rec['attendance_id']).first()
             hour_type = HourType(rec['hour_type'])
@@ -317,7 +325,7 @@ def sync_hours(config: dict, db, changed_member_ids=None, progress=None) -> dict
                 ))
             upserted += 1
 
-        db.commit()  # commit per member — fast on local SQLite
+        db.commit()
 
     logger.info(f'Hours sync: {upserted} records across {len(to_sync)} members')
     return {'upserted': upserted, 'skipped': 0, 'members_synced': len(to_sync)}

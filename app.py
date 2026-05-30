@@ -36,9 +36,15 @@ root_logger.setLevel(logging.INFO)
 root_logger.addHandler(_stream_handler)
 root_logger.addHandler(_file_handler)
 
-# d4h_sync logger also gets its own file
+# d4h_sync logger also gets its own file at DEBUG level
 sync_logger = logging.getLogger('d4h_sync')
+sync_logger.setLevel(logging.DEBUG)
 sync_logger.addHandler(_sync_handler)
+
+# d4h_client DEBUG goes to the same sync log
+client_logger = logging.getLogger('d4h_client')
+client_logger.setLevel(logging.DEBUG)
+client_logger.addHandler(_sync_handler)
 
 logger = logging.getLogger(__name__)
 

@@ -77,7 +77,10 @@ class D4HClient:
 
     def _get(self, path: str, params: dict = None) -> dict:
         url = f"{self.base_url}{path}"
+        logger.debug(f'GET {url} params={params}')
         resp = self.session.get(url, params=params, timeout=30)
+        if not resp.ok:
+            logger.error(f'D4H API error {resp.status_code} for GET {url}: {resp.text[:200]}')
         resp.raise_for_status()
         return resp.json()
 
