@@ -25,7 +25,8 @@ def index():
         pending=db.query(HoursRecord).filter_by(status=RecordStatus.pending).count(),
         total_records=db.query(HoursRecord).count(),
         total_users=db.query(User).filter_by(is_active=True).count(),
-        total_categories=db.query(Category).filter_by(is_active=True).count(),
+        total_categories=db.query(Category).filter(
+            Category.is_active == True, Category.is_system == False).count(),
         total_d4h_members=db.query(D4HMember).filter(
             D4HMember.status != 'Retired').count(),
         last_sync=last_sync,
@@ -153,7 +154,7 @@ def d4h_submit_status():
 @require_role('admin')
 def categories():
     db = get_db()
-    cats = db.query(Category).order_by(Category.name).all()
+    cats = db.query(Category).filter_by(is_system=False).order_by(Category.name).all()
     return render_template('admin/categories.html', categories=cats, hour_types=HourType)
 
 
@@ -449,7 +450,9 @@ def edit_record(record_id):
     record = db.get(HoursRecord, record_id)
     if not record:
         abort(404)
-    categories = db.query(Category).filter_by(is_active=True).order_by(Category.name).all()
+    categories = db.query(Category).filter(
+        Category.is_active == True, Category.is_system == False
+    ).order_by(Category.name).all()
 
     if request.method == 'POST':
         before = {
@@ -508,11 +511,9 @@ def edit_record(record_id):
 def roles():
     db = get_db()
     all_roles = db.query(AdminRole).order_by(AdminRole.name).all()
-    categories = db.query(Category).filter_by(is_active=True).order_by(Category.name).all()
     users = db.query(User).filter_by(is_active=True).order_by(User.display_name).all()
     return render_template('admin/roles.html', roles=all_roles,
-                           categories=categories, users=users,
-                           today=date.today().isoformat())
+                           users=users, today=date.today().isoformat())
 
 
 @admin_bp.route('/admin/roles/new', methods=['POST'])
@@ -523,10 +524,15 @@ def new_role():
     if not name:
         flash('Name is required.', 'error')
         return redirect(url_for('admin.roles'))
+    hour_type = request.form.get('hour_type', 'primary')
+    sys_cat = db.query(Category).filter_by(is_system=True, hour_type=hour_type).first()
+    if not sys_cat:
+        flash('Invalid hour type.', 'error')
+        return redirect(url_for('admin.roles'))
     db.add(AdminRole(
         name=name,
         monthly_hours=float(request.form['monthly_hours']),
-        category_id=int(request.form['category_id']),
+        category_id=sys_cat.id,
         description=request.form.get('description', '').strip() or None,
     ))
     db.commit()

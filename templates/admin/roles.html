@@ -61,11 +61,11 @@
         <input type="number" name="monthly_hours" required step="0.5" min="0.5" placeholder="e.g. 8">
       </div>
       <div class="field" style="margin-bottom:0">
-        <label>Category</label>
-        <select name="category_id" required>
-          {% for cat in categories %}
-          <option value="{{ cat.id }}">{{ cat.name }}</option>
-          {% endfor %}
+        <label>Hour Type</label>
+        <select name="hour_type" required>
+          <option value="primary">Primary</option>
+          <option value="secondary">Secondary</option>
+          <option value="other">Other</option>
         </select>
       </div>
     </div>
@@ -88,7 +88,7 @@
       </div>
       <div style="font-size:0.82rem;color:var(--muted);margin-top:2px">
         {{ role.monthly_hours }} hrs/month &nbsp;·&nbsp;
-        {{ role.category.name }} ({{ role.category.hour_type.value }})
+        {{ role.category.hour_type.value|capitalize }}
         {% if role.description %} &nbsp;·&nbsp; {{ role.description }}{% endif %}
       </div>
     </div>

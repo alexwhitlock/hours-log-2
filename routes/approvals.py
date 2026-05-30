@@ -54,7 +54,7 @@ def review(record_id):
     if not record:
         abort(404)
 
-    categories = db.query(Category).filter_by(is_active=True).order_by(Category.name).all()
+    categories = db.query(Category).filter(Category.is_active==True, Category.is_system==False).order_by(Category.name).all()
 
     if request.method == 'POST':
         action = request.form.get('action')

@@ -48,6 +48,7 @@ def run_migrations() -> None:
         ('users', 'tax_credit_notified_year', 'INTEGER'),
         ('hours_records', 'auto_role_assignment_id', 'INTEGER REFERENCES admin_role_assignments(id)'),
         ('hours_records', 'd4h_needs_resync', 'INTEGER NOT NULL DEFAULT 0'),
+        ('categories', 'is_system', 'INTEGER NOT NULL DEFAULT 0'),
     ]
     sql = __import__('sqlalchemy').text
     with _engine.connect() as conn:
@@ -59,6 +60,17 @@ def run_migrations() -> None:
         # Set new defaults on existing users who still have old 'off' values
         conn.execute(sql("UPDATE users SET notify_approval = 'weekly' WHERE notify_approval = 'off'"))
         conn.execute(sql("UPDATE users SET notify_pending  = 'weekly' WHERE notify_pending  = 'off'"))
+
+        # Seed system categories for auto-role hours
+        for ht in ('primary', 'secondary', 'other'):
+            exists = conn.execute(sql(
+                f"SELECT id FROM categories WHERE is_system=1 AND hour_type='{ht}'"
+            )).fetchone()
+            if not exists:
+                conn.execute(sql(
+                    f"INSERT INTO categories (name, hour_type, is_active, is_system) "
+                    f"VALUES ('System: {ht.capitalize()}', '{ht}', 1, 1)"
+                ))
 
         # Seed default settings if not present
         from settings import DEFAULTS

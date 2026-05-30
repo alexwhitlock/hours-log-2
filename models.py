@@ -114,6 +114,7 @@ class Category(Base):
     d4h_tag_id = Column(Integer, nullable=True)
     hour_type = Column(SQLEnum(HourType, native_enum=False), nullable=False, default=HourType.none)
     is_active = Column(Boolean, nullable=False, default=True)
+    is_system = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, nullable=False, default=datetime.now)
 
 
