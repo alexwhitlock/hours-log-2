@@ -8,8 +8,8 @@ from flask import (Blueprint, abort, current_app, flash, jsonify, redirect,
 
 from auth import require_role
 from db import get_db
-from models import (AdminRole, AdminRoleAssignment, Category, D4HHours, D4HMember,
-                    HourType, HoursRecord, RecordStatus, User, UserRole)
+from models import (AdminRole, AdminRoleAssignment, Category, CategoryApprover,
+                    D4HHours, D4HMember, HourType, HoursRecord, RecordStatus, User, UserRole)
 
 logger = logging.getLogger(__name__)
 admin_bp = Blueprint('admin', __name__)
@@ -155,7 +155,12 @@ def d4h_submit_status():
 def categories():
     db = get_db()
     cats = db.query(Category).filter_by(is_system=False).order_by(Category.name).all()
-    return render_template('admin/categories.html', categories=cats, hour_types=HourType)
+    approvers = db.query(User).filter(
+        User.role.in_([UserRole.approver, UserRole.admin]),
+        User.is_active == True,
+    ).order_by(User.display_name).all()
+    return render_template('admin/categories.html', categories=cats,
+                           hour_types=HourType, approvers=approvers)
 
 
 @admin_bp.route('/admin/categories/new', methods=['POST'])
@@ -185,6 +190,42 @@ def toggle_category(cat_id):
     cat.is_active = not cat.is_active
     db.commit()
     flash(f'Category {"activated" if cat.is_active else "deactivated"}.')
+    return redirect(url_for('admin.categories'))
+
+
+@admin_bp.route('/admin/categories/<int:cat_id>/approvers/add', methods=['POST'])
+@require_role('admin')
+def add_category_approver(cat_id):
+    db = get_db()
+    cat = db.get(Category, cat_id)
+    if not cat:
+        abort(404)
+    user_id = int(request.form['user_id'])
+    existing = db.query(CategoryApprover).filter_by(
+        category_id=cat_id, user_id=user_id).first()
+    if not existing:
+        db.add(CategoryApprover(category_id=cat_id, user_id=user_id))
+        db.commit()
+        flash('Approver added.')
+    return redirect(url_for('admin.categories'))
+
+
+@admin_bp.route('/admin/categories/approvers/<int:assignment_id>/remove', methods=['POST'])
+@require_role('admin')
+def remove_category_approver(assignment_id):
+    db = get_db()
+    a = db.get(CategoryApprover, assignment_id)
+    if not a:
+        abort(404)
+    # Enforce at least one approver
+    remaining = db.query(CategoryApprover).filter_by(
+        category_id=a.category_id).count()
+    if remaining <= 1:
+        flash('Cannot remove — each category must have at least one approver.', 'error')
+        return redirect(url_for('admin.categories'))
+    db.delete(a)
+    db.commit()
+    flash('Approver removed.')
     return redirect(url_for('admin.categories'))
 
 

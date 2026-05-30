@@ -61,6 +61,8 @@ def run_migrations() -> None:
         conn.execute(sql("UPDATE users SET notify_approval = 'weekly' WHERE notify_approval = 'off'"))
         conn.execute(sql("UPDATE users SET notify_pending  = 'weekly' WHERE notify_pending  = 'off'"))
 
+        # category_approvers table is created by create_all; no column migration needed
+
         # Seed system categories for auto-role hours
         for ht in ('primary', 'secondary', 'other'):
             exists = conn.execute(sql(

@@ -117,6 +117,9 @@ class Category(Base):
     is_system = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, nullable=False, default=datetime.now)
 
+    approvers = relationship('CategoryApprover', back_populates='category',
+                             cascade='all, delete-orphan')
+
 
 class HoursRecord(Base):
     __tablename__ = 'hours_records'
@@ -160,6 +163,19 @@ class RecordHistory(Base):
 
     record = relationship('HoursRecord', back_populates='history')
     actor = relationship('User', foreign_keys=[performed_by])
+
+
+class CategoryApprover(Base):
+    __tablename__ = 'category_approvers'
+    __table_args__ = (UniqueConstraint('user_id', 'category_id', name='uq_cat_approver'),)
+
+    id          = Column(Integer, primary_key=True)
+    category_id = Column(Integer, ForeignKey('categories.id'), nullable=False, index=True)
+    user_id     = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    created_at  = Column(DateTime, nullable=False, default=datetime.now)
+
+    category = relationship('Category', back_populates='approvers')
+    user     = relationship('User')
 
 
 class AdminRole(Base):

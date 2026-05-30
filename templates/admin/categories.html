@@ -2,32 +2,35 @@
 {% block title %}Categories{% endblock %}
 {% block head %}
 <style>
-  @media (max-width: 640px) { .desktop-only { display: none !important; } }
-  @media (min-width: 641px) { .mobile-only  { display: none !important; } }
   .ht-primary   { background:#d4edda;color:#155724; }
   .ht-secondary { background:#d1ecf1;color:#0c5460; }
   .ht-other     { background:#fef7e0;color:#7a5c00; }
   .ht-none      { background:#ededee;color:#555; }
 </style>
 {% endblock %}
+{% block container_class %}wide{% endblock %}
 {% block content %}
 
 <div class="page-header">
   <h1>Categories</h1>
-  <a href="/admin" class="btn btn-outline btn-sm"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="vertical-align:-2px"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Admin</a>
+  <a href="/admin" class="btn btn-outline btn-sm">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="vertical-align:-2px"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Admin
+  </a>
 </div>
 
-<div class="card">
+<!-- Add Category -->
+<div class="card" style="margin-bottom:14px">
   <div class="card-title">Add Category</div>
   <form method="POST" action="/admin/categories/new">
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
       <div class="field" style="flex:2;min-width:160px;margin-bottom:0">
-        <label for="name">Name</label>
-        <input type="text" name="name" id="name" required placeholder="e.g. Administration">
+        <label>Name</label>
+        <input type="text" name="name" required placeholder="e.g. Administration">
       </div>
       <div class="field" style="flex:1;min-width:110px;margin-bottom:0">
-        <label for="hour_type">Hour Type</label>
-        <select name="hour_type" id="hour_type">
+        <label>Hour Type</label>
+        <select name="hour_type">
           <option value="none">None</option>
           <option value="primary">Primary</option>
           <option value="secondary">Secondary</option>
@@ -40,80 +43,88 @@
 </div>
 
 {% if categories %}
-
 <input type="search" id="cats-search" placeholder="Search categories…" style="width:100%;margin-bottom:10px">
 
-<!-- Mobile: cards -->
-<div class="mobile-only" id="cats-cards">
-  {% for cat in categories %}
-  <div class="record-card" data-search="{{ cat.name|lower }} {{ cat.hour_type.value }}">
-    <div class="record-card-top">
-      <div>
-        <div class="record-card-cat">
-          {{ cat.name }}
-          {% if not cat.is_active %}<span class="badge badge-draft" style="margin-left:6px;font-weight:400">Inactive</span>{% endif %}
-        </div>
+<div id="cats-cards">
+{% for cat in categories %}
+<div class="card" style="margin-bottom:12px" data-search="{{ cat.name|lower }} {{ cat.hour_type.value }}">
+  <!-- Header -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+    <div>
+      <div style="font-weight:700;font-size:1rem">
+        {{ cat.name }}
+        {% if not cat.is_active %}<span class="badge badge-draft" style="margin-left:6px;font-weight:400">Inactive</span>{% endif %}
       </div>
-      <span class="badge ht-{{ cat.hour_type.value }}">{{ cat.hour_type.value|capitalize }}</span>
+      <div style="margin-top:4px"><span class="badge ht-{{ cat.hour_type.value }}">{{ cat.hour_type.value|capitalize }}</span></div>
     </div>
-    <div class="record-card-actions">
-      <form method="POST" action="/admin/categories/{{ cat.id }}/toggle">
+    <div style="display:flex;gap:6px;flex-shrink:0">
+      <form method="POST" action="/admin/categories/{{ cat.id }}/toggle" style="display:inline">
         <button type="submit" class="btn btn-grey btn-sm">{{ 'Deactivate' if cat.is_active else 'Activate' }}</button>
       </form>
       {% if not cat.is_active %}
-      <form method="POST" action="/admin/categories/{{ cat.id }}/delete"
-            onsubmit="return confirm('Delete category {{ cat.name }}? This cannot be undone.')">
+      <form method="POST" action="/admin/categories/{{ cat.id }}/delete" style="display:inline"
+            onsubmit="return confirm('Delete {{ cat.name }}? This cannot be undone.')">
         <button type="submit" class="btn btn-red btn-sm">Delete</button>
       </form>
       {% endif %}
     </div>
   </div>
-  {% endfor %}
-</div>
 
-<!-- Desktop: table -->
-<div class="table-wrap desktop-only">
-  <table id="cats-table">
-    <thead><tr><th data-col="0">Name</th><th data-col="1">Hour Type</th><th data-col="2">Status</th><th></th></tr></thead>
-    <tbody id="cats-body">
-      {% for cat in categories %}
-      <tr data-search="{{ cat.name|lower }} {{ cat.hour_type.value }}">
-        <td style="font-weight:600">
-          {{ cat.name }}
-          {% if not cat.is_active %}<span class="badge badge-draft" style="margin-left:6px;font-weight:400">Inactive</span>{% endif %}
-        </td>
-        <td><span class="badge ht-{{ cat.hour_type.value }}">{{ cat.hour_type.value|capitalize }}</span></td>
-        <td>{% if cat.is_active %}<span class="badge badge-approved">Active</span>{% else %}<span class="badge badge-draft">Inactive</span>{% endif %}</td>
-        <td style="white-space:nowrap">
-          <form method="POST" action="/admin/categories/{{ cat.id }}/toggle" style="display:inline">
-            <button type="submit" class="btn btn-grey btn-sm">{{ 'Deactivate' if cat.is_active else 'Activate' }}</button>
-          </form>
-          {% if not cat.is_active %}
-          <form method="POST" action="/admin/categories/{{ cat.id }}/delete" style="display:inline"
-                onsubmit="return confirm('Delete category {{ cat.name }}? This cannot be undone.')">
-            <button type="submit" class="btn btn-red btn-sm">Delete</button>
-          </form>
-          {% endif %}
-        </td>
-      </tr>
+  <!-- Approvers -->
+  {% if cat.approvers %}
+  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+    {% for a in cat.approvers %}
+    <span style="display:inline-flex;align-items:center;gap:5px;background:#f1f3f4;border-radius:999px;padding:3px 10px 3px 12px;font-size:0.82rem">
+      {{ a.user.display_name }}
+      <form method="POST" action="/admin/categories/approvers/{{ a.id }}/remove" style="display:inline;line-height:0">
+        <button type="submit" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:0.9rem;padding:0;line-height:1" title="Remove"
+                onclick="return confirm('Remove {{ a.user.display_name }} from {{ cat.name }}?')">×</button>
+      </form>
+    </span>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p style="font-size:0.82rem;color:var(--red);margin-bottom:10px">⚠ No approver assigned.</p>
+  {% endif %}
+
+  <!-- Add approver -->
+  <form method="POST" action="/admin/categories/{{ cat.id }}/approvers/add"
+        style="display:flex;gap:8px;align-items:center">
+    <select name="user_id" required style="flex:1">
+      <option value="">— add approver —</option>
+      {% for u in approvers %}
+      {% if u.id not in cat.approvers|map(attribute='user_id')|list %}
+      <option value="{{ u.id }}">{{ u.display_name }}</option>
+      {% endif %}
       {% endfor %}
-    </tbody>
-  </table>
+    </select>
+    <button type="submit" class="btn btn-sm">Add</button>
+  </form>
+</div>
+{% endfor %}
 </div>
 
 {% else %}
-<div class="empty"><div class="empty-icon">🏷️</div><p>No categories yet. Add one above.</p></div>
+<div class="empty"><div class="empty-icon">🏷️</div><p>No categories yet.</p></div>
 {% endif %}
 
-<p style="font-size:0.78rem;color:var(--muted);margin-top:12px;padding:0 2px">
+<p style="font-size:0.78rem;color:var(--muted);margin-top:12px">
   <strong>Primary</strong> and <strong>Secondary</strong> hours count toward the volunteer tax credit.
-  The hour type determines how records count toward the volunteer tax credit.
+  Each category must have at least one approver assigned.
 </p>
 
 {% endblock %}
 {% block scripts %}
 <script>
-initTableSort('cats-table');
-tableFilter('cats-search', 'cats-body', 'cats-cards');
+(function() {
+  const input = document.getElementById('cats-search');
+  if (!input) return;
+  input.addEventListener('input', function() {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('#cats-cards .card[data-search]').forEach(card => {
+      card.style.display = !q || card.dataset.search.includes(q) ? '' : 'none';
+    });
+  });
+})();
 </script>
 {% endblock %}

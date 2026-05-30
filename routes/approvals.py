@@ -5,7 +5,8 @@ from flask import (Blueprint, abort, flash, redirect, render_template, request,
 
 from auth import require_role
 from db import get_db
-from models import Category, D4HHours, HoursRecord, RecordHistory, RecordStatus, NotifyPref, User
+from models import (Category, CategoryApprover, D4HHours, HoursRecord,
+                    RecordHistory, RecordStatus, NotifyPref, User, UserRole)
 
 approvals_bp = Blueprint('approvals', __name__)
 
@@ -58,10 +59,14 @@ def _check_tax_credit_milestone(db, user):
 @require_role('approver')
 def index():
     db = get_db()
-    records = (db.query(HoursRecord)
-               .filter_by(status=RecordStatus.pending)
-               .order_by(HoursRecord.date.desc())
-               .all())
+    base_q = db.query(HoursRecord).filter_by(status=RecordStatus.pending)
+
+    if session.get('role') != 'admin':
+        assigned = {a.category_id for a in db.query(CategoryApprover)
+                    .filter_by(user_id=session['user_id']).all()}
+        base_q = base_q.filter(HoursRecord.category_id.in_(assigned))
+
+    records = base_q.order_by(HoursRecord.date.desc()).all()
     return render_template('approvals/index.html', records=records)
 
 
