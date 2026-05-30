@@ -33,7 +33,7 @@
       </div>
     </div>
     <div class="record-card-actions">
-      <a href="/approvals/{{ r.id }}/review" class="btn btn-outline btn-sm">Review &amp; Edit</a>
+      <a href="/approvals/{{ r.id }}/review" class="btn btn-outline btn-sm">Edit &amp; Edit</a>
       <form method="POST" action="/approvals/{{ r.id }}/approve" style="flex:1">
         <button type="submit" class="btn btn-green btn-full">Approve</button>
       </form>
@@ -60,7 +60,7 @@
         <td style="font-weight:600">{{ '%.1f'|format(r.hours|float) }}</td>
         <td style="font-size:0.85rem">{{ r.description or '—' }}</td>
         <td style="white-space:nowrap">
-          <a href="/approvals/{{ r.id }}/review" class="btn btn-outline btn-sm">Review</a>
+          <a href="/approvals/{{ r.id }}/review" class="btn btn-outline btn-sm">Edit</a>
           <form method="POST" action="/approvals/{{ r.id }}/approve" style="display:inline">
             <button type="submit" class="btn btn-green btn-sm">✓</button>
           </form>
