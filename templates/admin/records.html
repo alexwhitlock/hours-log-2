@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block title %}All Records{% endblock %}
+{% block head %}
+<style>
+  @media (max-width: 640px) { .desktop-only { display: none !important; } }
+  @media (min-width: 641px) { .mobile-only  { display: none !important; } }
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>All Records</h1>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span style="font-size:0.85rem;color:var(--muted);font-weight:600">{{ records|length }} shown</span>
+    <a href="/admin" class="btn btn-outline btn-sm"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="vertical-align:-2px"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Admin</a>
+  </div>
+</div>
+
+<div class="card" style="padding:12px 14px;margin-bottom:14px">
+  <form method="GET" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <select name="status" style="width:auto;padding:8px 32px 8px 10px;font-size:0.88rem;border-radius:6px;flex:1;min-width:150px">
+      <option value="">All statuses</option>
+      {% for s in statuses %}
+      <option value="{{ s.value }}" {% if status_filter == s.value %}selected{% endif %}>{{ s.value|capitalize }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-sm">Filter</button>
+    {% if status_filter %}<a href="/admin/records" style="font-size:0.85rem;color:var(--accent)">Clear</a>{% endif %}
+  </form>
+</div>
+
+{% if records %}
+
+<!-- Mobile: cards -->
+<div class="mobile-only">
+  {% for r in records %}
+  <div class="record-card">
+    <div class="record-card-top">
+      <div>
+        <div class="record-card-meta">{{ r.user.display_name }} · {{ r.date.strftime('%b %d, %Y') }}</div>
+        <div class="record-card-cat">{{ r.category.name }}</div>
+        {% if r.description %}<div class="record-card-desc" style="margin-top:4px">{{ r.description }}</div>{% endif %}
+      </div>
+      <div style="text-align:right">
+        <div class="record-card-hours">{{ '%.1f'|format(r.hours|float) }} hrs</div>
+        <span class="badge badge-{{ r.status.value }}">{{ r.status.value }}</span>
+      </div>
+    </div>
+    <div class="record-card-actions">
+      <a href="/admin/records/{{ r.id }}/history" class="btn btn-grey btn-sm">History</a>
+      <form method="POST" action="/admin/records/{{ r.id }}/delete" onsubmit="return confirm('Delete this record? This cannot be undone.')">
+        <button type="submit" class="btn btn-red btn-sm">Delete</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Desktop: table -->
+<div class="table-wrap desktop-only">
+  <table>
+    <thead>
+      <tr><th>Member</th><th>Date</th><th>Category</th><th>Hrs</th><th>Description</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for r in records %}
+      <tr>
+        <td style="font-weight:600">{{ r.user.display_name }}</td>
+        <td style="color:var(--muted)">{{ r.date.strftime('%b %d, %Y') }}</td>
+        <td>{{ r.category.name }}</td>
+        <td style="font-weight:600">{{ '%.1f'|format(r.hours|float) }}</td>
+        <td style="color:var(--muted);font-size:0.85rem">{{ r.description or '—' }}</td>
+        <td><span class="badge badge-{{ r.status.value }}">{{ r.status.value }}</span></td>
+        <td style="white-space:nowrap">
+          <a href="/admin/records/{{ r.id }}/history" class="btn btn-grey btn-sm">History</a>
+          <form method="POST" action="/admin/records/{{ r.id }}/delete" style="display:inline" onsubmit="return confirm('Delete this record? This cannot be undone.')">
+            <button type="submit" class="btn btn-red btn-sm">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% else %}
+<div class="empty"><div class="empty-icon">📋</div><p>No records found.</p></div>
+{% endif %}
+
+{% endblock %}

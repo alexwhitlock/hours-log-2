@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block title %}Categories{% endblock %}
+{% block head %}
+<style>
+  @media (max-width: 640px) { .desktop-only { display: none !important; } }
+  @media (min-width: 641px) { .mobile-only  { display: none !important; } }
+  .ht-primary   { background:#d4edda;color:#155724; }
+  .ht-secondary { background:#d1ecf1;color:#0c5460; }
+  .ht-other     { background:#fef7e0;color:#7a5c00; }
+  .ht-none      { background:#ededee;color:#555; }
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Categories</h1>
+  <a href="/admin" class="btn btn-outline btn-sm"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="vertical-align:-2px"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Admin</a>
+</div>
+
+<div class="card">
+  <div class="card-title">Add Category</div>
+  <form method="POST" action="/admin/categories/new">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div class="field" style="flex:2;min-width:160px;margin-bottom:0">
+        <label for="name">Name</label>
+        <input type="text" name="name" id="name" required placeholder="e.g. Administration">
+      </div>
+      <div class="field" style="flex:1;min-width:110px;margin-bottom:0">
+        <label for="hour_type">Hour Type</label>
+        <select name="hour_type" id="hour_type">
+          <option value="none">None</option>
+          <option value="primary">Primary</option>
+          <option value="secondary">Secondary</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="field" style="flex:1;min-width:110px;margin-bottom:0">
+        <label for="d4h_tag_id">D4H Tag ID <span style="font-weight:400;color:var(--muted)">(opt.)</span></label>
+        <input type="number" name="d4h_tag_id" id="d4h_tag_id" placeholder="e.g. 42">
+      </div>
+      <button type="submit" class="btn" style="flex-shrink:0;align-self:flex-end">Add</button>
+    </div>
+  </form>
+</div>
+
+{% if categories %}
+
+<!-- Mobile: cards -->
+<div class="mobile-only">
+  {% for cat in categories %}
+  <div class="record-card" {% if not cat.is_active %}style="opacity:.5"{% endif %}>
+    <div class="record-card-top">
+      <div>
+        <div class="record-card-cat">{{ cat.name }}</div>
+        <div class="record-card-meta" style="margin-top:3px">D4H Tag: {{ cat.d4h_tag_id or '—' }}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+        <span class="badge ht-{{ cat.hour_type.value }}">{{ cat.hour_type.value|capitalize }}</span>
+        {% if cat.is_active %}<span class="badge badge-approved">Active</span>{% else %}<span class="badge badge-draft">Inactive</span>{% endif %}
+      </div>
+    </div>
+    <div class="record-card-actions">
+      <form method="POST" action="/admin/categories/{{ cat.id }}/toggle">
+        <button type="submit" class="btn btn-grey btn-sm">{{ 'Deactivate' if cat.is_active else 'Activate' }}</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Desktop: table -->
+<div class="table-wrap desktop-only">
+  <table>
+    <thead><tr><th>Name</th><th>Hour Type</th><th>D4H Tag ID</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for cat in categories %}
+      <tr {% if not cat.is_active %}style="opacity:.5"{% endif %}>
+        <td style="font-weight:600">{{ cat.name }}</td>
+        <td><span class="badge ht-{{ cat.hour_type.value }}">{{ cat.hour_type.value|capitalize }}</span></td>
+        <td style="color:var(--muted)">{{ cat.d4h_tag_id or '—' }}</td>
+        <td>{% if cat.is_active %}<span class="badge badge-approved">Active</span>{% else %}<span class="badge badge-draft">Inactive</span>{% endif %}</td>
+        <td>
+          <form method="POST" action="/admin/categories/{{ cat.id }}/toggle" style="display:inline">
+            <button type="submit" class="btn btn-grey btn-sm">{{ 'Deactivate' if cat.is_active else 'Activate' }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% else %}
+<div class="empty"><div class="empty-icon">🏷️</div><p>No categories yet. Add one above.</p></div>
+{% endif %}
+
+<p style="font-size:0.78rem;color:var(--muted);margin-top:12px;padding:0 2px">
+  <strong>Primary</strong> and <strong>Secondary</strong> hours count toward the volunteer tax credit.
+  Tag categories to match the D4H activity tags used on incidents, exercises, and events.
+</p>
+
+{% endblock %}

@@ -1,0 +1,14 @@
+services:
+  hours_log:
+    image: hours-log:local
+    container_name: hours_log
+    ports:
+      - "5002:5000"
+    volumes:
+      - ./config.json:/app/config.json:ro
+      - ./data:/app/data
+      - ./logs:/app/logs
+    environment:
+      - DB_PATH=/app/data/hours_log.db
+      - LOG_DIR=/app/logs
+    restart: unless-stopped

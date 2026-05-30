@@ -1,0 +1,9 @@
+{
+  "SECRET_KEY": "<run: python -c \"import secrets; print(secrets.token_hex(32))\" to generate>",
+  "GOOGLE_CLIENT_ID": "<OAuth 2.0 client ID from Google Cloud Console>",
+  "GOOGLE_CLIENT_SECRET": "<OAuth 2.0 client secret>",
+  "ALLOWED_DOMAIN": "sbo-ovsar.ca",
+  "D4H_API_TOKEN": "<D4H personal access token>",
+  "D4H_TEAM_ID": "<D4H team ID>",
+  "D4H_GOOGLE_FIELD_ID": "1817"
+}

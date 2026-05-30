@@ -1,0 +1,143 @@
+import enum
+from datetime import datetime
+
+from sqlalchemy import (Boolean, Column, Date, DateTime, Enum as SQLEnum,
+                        ForeignKey, Integer, JSON, Numeric, String, Text)
+from sqlalchemy.orm import DeclarativeBase, relationship
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class UserRole(str, enum.Enum):
+    member = 'member'
+    approver = 'approver'
+    admin = 'admin'
+
+
+class RecordStatus(str, enum.Enum):
+    draft = 'draft'
+    pending = 'pending'
+    approved = 'approved'
+    rejected = 'rejected'
+    submitted = 'submitted'
+
+
+class HourType(str, enum.Enum):
+    primary = 'primary'
+    secondary = 'secondary'
+    other = 'other'
+    none = 'none'
+
+
+class D4HMember(Base):
+    __tablename__ = 'd4h_members'
+
+    id = Column(Integer, primary_key=True)
+    ref = Column(String(32), nullable=False, index=True)
+    name = Column(String(256), nullable=False)
+    email = Column(String(256), nullable=True)
+    google_username = Column(String(64), nullable=True, index=True)
+    status = Column(String(32), nullable=False, default='Operational')
+    count_rolling_hours = Column(Integer, nullable=True)
+    last_synced_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow,
+                        onupdate=datetime.utcnow)
+
+    user = relationship('User', back_populates='d4h_member', uselist=False)
+    d4h_hours = relationship('D4HHours', back_populates='d4h_member')
+
+    @property
+    def is_active(self):
+        return self.status != 'Retired'
+
+
+class D4HHours(Base):
+    __tablename__ = 'd4h_hours'
+
+    id = Column(Integer, primary_key=True)
+    d4h_attendance_id = Column(Integer, unique=True, nullable=False, index=True)
+    d4h_member_id = Column(Integer, ForeignKey('d4h_members.id'), nullable=False, index=True)
+    activity_type = Column(String(16), nullable=False)
+    d4h_activity_id = Column(Integer, nullable=False)
+    activity_name = Column(String(256), nullable=True)
+    hour_type = Column(SQLEnum(HourType, native_enum=False), nullable=False, default=HourType.none)
+    date = Column(Date, nullable=False)
+    hours = Column(Numeric(6, 2), nullable=False)
+    synced_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    d4h_member = relationship('D4HMember', back_populates='d4h_hours')
+
+
+class User(Base):
+    __tablename__ = 'users'
+
+    id = Column(Integer, primary_key=True)
+    google_sub = Column(String(128), unique=True, nullable=False, index=True)
+    email = Column(String(256), unique=True, nullable=False, index=True)
+    username = Column(String(64), nullable=False)
+    display_name = Column(String(256), nullable=False)
+    role = Column(SQLEnum(UserRole, native_enum=False), nullable=False, default=UserRole.member)
+    d4h_member_id = Column(Integer, ForeignKey('d4h_members.id'), nullable=True, index=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    last_login_at = Column(DateTime, nullable=True)
+
+    records = relationship('HoursRecord', back_populates='user',
+                           foreign_keys='HoursRecord.user_id')
+    d4h_member = relationship('D4HMember', back_populates='user')
+
+
+class Category(Base):
+    __tablename__ = 'categories'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(256), nullable=False)
+    d4h_tag_id = Column(Integer, nullable=True)
+    hour_type = Column(SQLEnum(HourType, native_enum=False), nullable=False, default=HourType.none)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class HoursRecord(Base):
+    __tablename__ = 'hours_records'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    category_id = Column(Integer, ForeignKey('categories.id'), nullable=False)
+    date = Column(Date, nullable=False)
+    hours = Column(Numeric(5, 2), nullable=False)
+    description = Column(Text, nullable=True)
+    status = Column(SQLEnum(RecordStatus, native_enum=False), nullable=False,
+                    default=RecordStatus.draft)
+    approved_by = Column(Integer, ForeignKey('users.id'), nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    d4h_submitted_by = Column(Integer, ForeignKey('users.id'), nullable=True)
+    d4h_submitted_at = Column(DateTime, nullable=True)
+    d4h_record_id = Column(String(128), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow,
+                        onupdate=datetime.utcnow)
+
+    user = relationship('User', back_populates='records', foreign_keys=[user_id])
+    category = relationship('Category')
+    approver = relationship('User', foreign_keys=[approved_by])
+    d4h_submitter = relationship('User', foreign_keys=[d4h_submitted_by])
+    history = relationship('RecordHistory', back_populates='record',
+                           order_by='RecordHistory.timestamp')
+
+
+class RecordHistory(Base):
+    __tablename__ = 'record_history'
+
+    id = Column(Integer, primary_key=True)
+    record_id = Column(Integer, ForeignKey('hours_records.id'), nullable=False)
+    action = Column(String(64), nullable=False)
+    performed_by = Column(Integer, ForeignKey('users.id'), nullable=False)
+    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
+    changes = Column(JSON, nullable=True)
+
+    record = relationship('HoursRecord', back_populates='history')
+    actor = relationship('User', foreign_keys=[performed_by])

@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% block title %}Hours Report{% endblock %}
+{% block head %}
+<style>
+  @media (max-width: 640px) { .desktop-only { display: none !important; } }
+  @media (min-width: 641px) { .mobile-only  { display: none !important; } }
+  .tax-credit { color: var(--accent); font-weight: 700; }
+  .no-login { opacity: .55; }
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Hours Report</h1>
+  <div style="display:flex;align-items:center;gap:8px">
+    <form method="GET" style="display:flex;align-items:center;gap:6px">
+      <select name="year" onchange="this.form.submit()" style="width:auto;padding:6px 28px 6px 10px;font-size:0.88rem;border-radius:6px">
+        {% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+      </select>
+    </form>
+    <a href="/admin" class="btn btn-outline btn-sm"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="vertical-align:-2px"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Admin</a>
+  </div>
+</div>
+
+<p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px">
+  Includes D4H hours (synced) + tool hours (approved/submitted).
+  <strong>Tax credit</strong> = Primary + Secondary.
+  Greyed members have not logged in to this tool.
+</p>
+
+{% if rows %}
+
+<!-- Mobile: cards -->
+<div class="mobile-only">
+  {% for row in rows %}
+  <div class="record-card {% if not row.has_login %}no-login{% endif %}">
+    <div class="record-card-top">
+      <div>
+        <div class="record-card-cat">{{ row.member.name }}</div>
+        <div class="record-card-meta">Ref {{ row.member.ref }}{% if not row.has_login %} · no login{% endif %}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="tax-credit" style="font-size:1rem">{{ '%.1f'|format(row.tax_credit) }} <span style="font-size:0.7rem">TC</span></div>
+        <div style="font-size:0.78rem;color:var(--muted)">{{ '%.1f'|format(row.total) }} total</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:6px;font-size:0.78rem;color:var(--muted)">
+      <span>P: <strong style="color:var(--text)">{{ '%.1f'|format(row.primary) }}</strong></span>
+      <span>S: <strong style="color:var(--text)">{{ '%.1f'|format(row.secondary) }}</strong></span>
+      <span>O: <strong style="color:var(--text)">{{ '%.1f'|format(row.other) }}</strong></span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Desktop: table -->
+<div class="table-wrap desktop-only">
+  <table>
+    <thead>
+      <tr>
+        <th>Member</th>
+        <th>Ref</th>
+        <th>Primary</th>
+        <th>Secondary</th>
+        <th>Other</th>
+        <th>Tax Credit</th>
+        <th>Total</th>
+        <th>Login</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% set ns = namespace(tot_p=0, tot_s=0, tot_o=0, tot_tc=0, tot_all=0) %}
+      {% for row in rows %}
+      {% set ns.tot_p = ns.tot_p + row.primary %}
+      {% set ns.tot_s = ns.tot_s + row.secondary %}
+      {% set ns.tot_o = ns.tot_o + row.other %}
+      {% set ns.tot_tc = ns.tot_tc + row.tax_credit %}
+      {% set ns.tot_all = ns.tot_all + row.total %}
+      <tr {% if not row.has_login %}class="no-login"{% endif %}>
+        <td style="font-weight:600">{{ row.member.name }}</td>
+        <td style="color:var(--muted);font-family:monospace;font-size:0.85rem">{{ row.member.ref }}</td>
+        <td>{{ '%.1f'|format(row.primary) }}</td>
+        <td>{{ '%.1f'|format(row.secondary) }}</td>
+        <td>{{ '%.1f'|format(row.other) }}</td>
+        <td class="tax-credit">{{ '%.1f'|format(row.tax_credit) }}</td>
+        <td style="font-weight:600">{{ '%.1f'|format(row.total) }}</td>
+        <td>
+          {% if row.has_login %}
+          <span class="badge badge-approved">Yes</span>
+          {% else %}
+          <span class="badge badge-draft">No</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      <tr style="background:#f8f9fa;font-weight:700;border-top:2px solid var(--border)">
+        <td colspan="2">Totals ({{ rows|length }} members)</td>
+        <td>{{ '%.1f'|format(ns.tot_p) }}</td>
+        <td>{{ '%.1f'|format(ns.tot_s) }}</td>
+        <td>{{ '%.1f'|format(ns.tot_o) }}</td>
+        <td class="tax-credit">{{ '%.1f'|format(ns.tot_tc) }}</td>
+        <td>{{ '%.1f'|format(ns.tot_all) }}</td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+{% else %}
+<div class="empty">
+  <div class="empty-icon">📊</div>
+  <p>No data yet. Run a D4H sync from the Admin page first.</p>
+</div>
+{% endif %}
+
+{% endblock %}

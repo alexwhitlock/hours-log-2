@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}Users{% endblock %}
+{% block head %}
+<style>
+  @media (max-width: 640px) { .desktop-only { display: none !important; } }
+  @media (min-width: 641px) { .mobile-only  { display: none !important; } }
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Users</h1>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span style="font-size:0.85rem;color:var(--muted);font-weight:600">{{ users|length }} total</span>
+    <a href="/admin" class="btn btn-outline btn-sm"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="vertical-align:-2px"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Admin</a>
+  </div>
+</div>
+
+<!-- Mobile: cards -->
+<div class="mobile-only">
+  {% for u in users %}
+  <div class="record-card" {% if not u.is_active %}style="opacity:.5"{% endif %}>
+    <div class="record-card-top">
+      <div>
+        <div class="record-card-cat">{{ u.display_name }}</div>
+        <div class="record-card-meta" style="margin-top:2px">{{ u.email }}</div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-top:2px">Last login: {{ u.last_login_at.strftime('%b %d, %Y') if u.last_login_at else 'Never' }}</div>
+      </div>
+      <div>{% if u.is_active %}<span class="badge badge-approved">Active</span>{% else %}<span class="badge badge-draft">Inactive</span>{% endif %}</div>
+    </div>
+    <div class="record-card-actions">
+      <form method="POST" action="/admin/users/{{ u.id }}/role" style="flex:1">
+        <select name="role" onchange="this.form.submit()" style="width:100%;padding:8px 32px 8px 10px;font-size:0.88rem;border-radius:6px">
+          {% for role in roles %}<option value="{{ role.value }}" {% if u.role == role %}selected{% endif %}>{{ role.value|capitalize }}</option>{% endfor %}
+        </select>
+      </form>
+      <form method="POST" action="/admin/users/{{ u.id }}/toggle">
+        <button type="submit" class="btn btn-grey btn-sm" onclick="return confirm('{{ 'Deactivate' if u.is_active else 'Activate' }} {{ u.display_name }}?')">
+          {{ 'Deactivate' if u.is_active else 'Activate' }}
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Desktop: table -->
+<div class="table-wrap desktop-only">
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Last Login</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr {% if not u.is_active %}style="opacity:.5"{% endif %}>
+        <td style="font-weight:600">{{ u.display_name }}</td>
+        <td style="color:var(--muted);font-size:0.85rem">{{ u.email }}</td>
+        <td>
+          <form method="POST" action="/admin/users/{{ u.id }}/role" style="display:inline">
+            <select name="role" onchange="this.form.submit()" style="width:auto;padding:6px 28px 6px 8px;font-size:0.85rem;border-radius:6px">
+              {% for role in roles %}<option value="{{ role.value }}" {% if u.role == role %}selected{% endif %}>{{ role.value|capitalize }}</option>{% endfor %}
+            </select>
+          </form>
+        </td>
+        <td>{% if u.is_active %}<span class="badge badge-approved">Active</span>{% else %}<span class="badge badge-draft">Inactive</span>{% endif %}</td>
+        <td style="font-size:0.85rem;color:var(--muted)">{{ u.last_login_at.strftime('%b %d, %Y') if u.last_login_at else 'Never' }}</td>
+        <td>
+          <form method="POST" action="/admin/users/{{ u.id }}/toggle">
+            <button type="submit" class="btn btn-grey btn-sm" onclick="return confirm('{{ 'Deactivate' if u.is_active else 'Activate' }} {{ u.display_name }}?')">
+              {{ 'Deactivate' if u.is_active else 'Activate' }}
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p style="font-size:0.78rem;color:var(--muted);margin-top:12px;padding:0 2px">Users are created automatically on first login. Role changes take effect at next sign-in.</p>
+
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}Error {{ code }}{% endblock %}
+{% block content %}
+<div class="card" style="text-align:center;padding:48px 24px">
+  <div style="font-size:48px;margin-bottom:12px">{{ '🚫' if code == 403 else '🔍' }}</div>
+  <h2 style="font-size:18px;margin-bottom:8px;color:#c5221f">
+    {{ 'Access Denied' if code == 403 else 'Not Found' }}
+  </h2>
+  <p style="font-size:14px;color:#5f6368;margin-bottom:24px">{{ message }}</p>
+  <a href="/hours" class="btn btn-outline">Go to My Hours</a>
+</div>
+{% endblock %}

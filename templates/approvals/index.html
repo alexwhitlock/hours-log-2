@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block title %}Approvals{% endblock %}
+{% block head %}
+<style>
+  @media (max-width: 640px) { .desktop-only { display: none !important; } }
+  @media (min-width: 641px) { .mobile-only  { display: none !important; } }
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Approvals</h1>
+  <span style="font-size:0.85rem;color:var(--muted);font-weight:600">{{ records|length }} pending</span>
+</div>
+
+{% if records %}
+
+<!-- Mobile: cards -->
+<div class="mobile-only">
+  {% for r in records %}
+  <div class="record-card">
+    <div class="record-card-top">
+      <div>
+        <div class="record-card-meta">{{ r.user.display_name }} · {{ r.date.strftime('%b %d, %Y') }}</div>
+        <div class="record-card-cat">{{ r.category.name }}</div>
+        {% if r.description %}<div class="record-card-desc" style="margin-top:4px">{{ r.description }}</div>{% endif %}
+      </div>
+      <div style="text-align:right">
+        <div class="record-card-hours">{{ '%.1f'|format(r.hours|float) }} hrs</div>
+      </div>
+    </div>
+    <div class="record-card-actions">
+      <form method="POST" action="/approvals/{{ r.id }}/approve" style="flex:1">
+        <button type="submit" class="btn btn-green btn-full">Approve</button>
+      </form>
+      <form method="POST" action="/approvals/{{ r.id }}/reject" style="flex:1" onsubmit="return confirm('Reject this record?')">
+        <button type="submit" class="btn btn-red btn-full">Reject</button>
+      </form>
+      <a href="/admin/records/{{ r.id }}/history" class="btn btn-grey btn-sm" style="align-self:center">History</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Desktop: table -->
+<div class="table-wrap desktop-only">
+  <table>
+    <thead>
+      <tr><th>Member</th><th>Date</th><th>Category</th><th>Hrs</th><th>Description</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for r in records %}
+      <tr>
+        <td style="font-weight:600">{{ r.user.display_name }}</td>
+        <td style="white-space:nowrap;color:var(--muted)">{{ r.date.strftime('%b %d, %Y') }}</td>
+        <td>{{ r.category.name }}</td>
+        <td style="font-weight:600">{{ '%.1f'|format(r.hours|float) }}</td>
+        <td style="color:var(--muted);font-size:0.85rem">{{ r.description or '—' }}</td>
+        <td style="white-space:nowrap">
+          <form method="POST" action="/approvals/{{ r.id }}/approve" style="display:inline">
+            <button type="submit" class="btn btn-green btn-sm">Approve</button>
+          </form>
+          <form method="POST" action="/approvals/{{ r.id }}/reject" style="display:inline" onsubmit="return confirm('Reject this record?')">
+            <button type="submit" class="btn btn-red btn-sm">Reject</button>
+          </form>
+          <a href="/admin/records/{{ r.id }}/history" class="btn btn-grey btn-sm">History</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% else %}
+<div class="empty">
+  <div class="empty-icon">✓</div>
+  <p>No pending records — all caught up.</p>
+</div>
+{% endif %}
+
+{% endblock %}
