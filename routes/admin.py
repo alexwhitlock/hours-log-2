@@ -263,6 +263,10 @@ def hours_report():
             'o_d4h': o_d4h, 'o_tool': o_tool,
             'tax_credit': tax_credit,
             'total': tax_credit + o_d4h + o_tool,
+            # convenience totals for display
+            'primary': p_d4h + p_tool,
+            'secondary': s_d4h + s_tool,
+            'other': o_d4h + o_tool,
         })
 
     years = list(range(2026, date.today().year + 1))
