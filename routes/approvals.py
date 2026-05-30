@@ -19,16 +19,17 @@ def _check_tax_credit_milestone(db, user):
         return  # already notified this year
 
     from d4h_sync import hours_by_year
+    from settings import get_eligibility_settings, check_eligibility
     d4h_hours = db.query(D4HHours).filter_by(d4h_member_id=user.d4h_member_id).all() \
         if user.d4h_member_id else []
     tool_records = db.query(HoursRecord).filter_by(user_id=user.id).all()
     summary = hours_by_year(d4h_hours, tool_records, year)
-
-    tc_hrs = float(summary['tax_credit'])
-    primary_ok = float(summary['primary']) > float(summary['secondary'])
-    if tc_hrs >= 200 and primary_ok:
+    es = get_eligibility_settings(db)
+    hours_ok, primary_ok = check_eligibility(summary, es)
+    if hours_ok and primary_ok:
         from mail import send_tax_credit_eligible
-        send_tax_credit_eligible(user.email, user.display_name, tc_hrs, year)
+        send_tax_credit_eligible(user.email, user.display_name,
+                                 float(summary['total']), year)
         user.tax_credit_notified_year = year
         db.commit()
 

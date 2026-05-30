@@ -80,6 +80,22 @@ def record_history(record_id):
     return render_template('admin/history.html', record=record)
 
 
+# ── Settings ─────────────────────────────────────────────────────────────────
+
+@admin_bp.route('/admin/settings', methods=['GET', 'POST'])
+@require_role('admin')
+def admin_settings():
+    import settings as s
+    db = get_db()
+    if request.method == 'POST':
+        s.set_value(db, 'tax_credit_min_total',   request.form.get('tax_credit_min_total', '200'))
+        s.set_value(db, 'tax_credit_min_primary',  request.form.get('tax_credit_min_primary', '101'))
+        flash('Settings saved.')
+        return redirect(url_for('admin.admin_settings'))
+    es = s.get_eligibility_settings(db)
+    return render_template('admin/settings.html', es=es)
+
+
 # ── D4H Submit ───────────────────────────────────────────────────────────────
 
 _submit_status: dict = {'running': False, 'result': None, 'error': None,
@@ -390,12 +406,16 @@ def member_detail(member_id):
         })
     records.sort(key=lambda x: x['date'], reverse=True)
 
+    from settings import get_eligibility_settings, check_eligibility
+    es = get_eligibility_settings(db)
+    hours_ok, primary_ok = check_eligibility(summary, es)
+
     return render_template('admin/member_detail.html',
                            member=member,
                            records=records,
                            summary=summary,
-                           year=year,
-                           years=years)
+                           year=year, years=years,
+                           es=es, hours_ok=hours_ok, primary_ok=primary_ok)
 
 
 # ── Admin Record Edit ─────────────────────────────────────────────────────────

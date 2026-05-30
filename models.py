@@ -192,6 +192,14 @@ class AdminRoleAssignment(Base):
     admin_role = relationship('AdminRole', back_populates='assignments')
 
 
+class Setting(Base):
+    __tablename__ = 'settings'
+
+    key        = Column(String(64), primary_key=True)
+    value      = Column(Text, nullable=False)
+    updated_at = Column(DateTime, nullable=True)
+
+
 class D4HSubmissionEvent(Base):
     __tablename__ = 'd4h_submission_events'
     __table_args__ = (UniqueConstraint('year', 'month', 'hour_type',

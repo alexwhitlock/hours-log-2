@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Settings</h1>
+  <a href="/admin" class="btn btn-outline btn-sm">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="vertical-align:-2px"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Admin
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-title">Tax Credit Eligibility Thresholds</div>
+  <p style="font-size:0.85rem;color:var(--muted);margin-bottom:16px">
+    These values determine when a member is considered eligible for the volunteer tax credit.
+    Changes take effect immediately for all members.
+  </p>
+  <form method="POST">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:400px">
+      <div class="field">
+        <label for="tax_credit_min_total">Minimum total hours</label>
+        <input type="number" name="tax_credit_min_total" id="tax_credit_min_total"
+               value="{{ es.min_total|int }}" min="1" max="9999" step="1" required>
+      </div>
+      <div class="field">
+        <label for="tax_credit_min_primary">Minimum primary hours</label>
+        <input type="number" name="tax_credit_min_primary" id="tax_credit_min_primary"
+               value="{{ es.min_primary|int }}" min="1" max="9999" step="1" required>
+      </div>
+    </div>
+    <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px">
+      A member is eligible when they have ≥ {{ es.min_total|int }} total hours
+      AND ≥ {{ es.min_primary|int }} primary hours.
+    </p>
+    <button type="submit" class="btn">Save Settings</button>
+  </form>
+</div>
+
+{% endblock %}

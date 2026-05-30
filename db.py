@@ -59,4 +59,12 @@ def run_migrations() -> None:
         # Set new defaults on existing users who still have old 'off' values
         conn.execute(sql("UPDATE users SET notify_approval = 'weekly' WHERE notify_approval = 'off'"))
         conn.execute(sql("UPDATE users SET notify_pending  = 'weekly' WHERE notify_pending  = 'off'"))
+
+        # Seed default settings if not present
+        from settings import DEFAULTS
+        for key, value in DEFAULTS.items():
+            existing = conn.execute(sql(f"SELECT key FROM settings WHERE key = '{key}'")).fetchone()
+            if not existing:
+                conn.execute(sql(f"INSERT INTO settings (key, value) VALUES ('{key}', '{value}')"))
+
         conn.commit()

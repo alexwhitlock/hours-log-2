@@ -38,16 +38,15 @@
 </div>
 
 <!-- Tax credit eligibility -->
-{% set tc_hrs = summary.tax_credit|float %}
-{% set tc_min = 200.0 %}
-{% set tc_pct = [[(tc_hrs / tc_min * 100)|round(1), 0]|max, 100]|min %}
-{% set p_hrs = summary.primary|float %}
-{% set s_hrs = summary.secondary|float %}
-{% set p_pct = [[p_hrs / tc_min * 100, 0]|max, 100]|min|round(1) %}
-{% set s_pct = [[tc_pct - p_pct, 0]|max, 100 - p_pct]|min|round(1) %}
-{% set primary_ok = p_hrs > s_hrs %}
-{% set hours_ok = tc_hrs >= tc_min %}
-{% set eligible = hours_ok and primary_ok %}
+{% set total_hrs   = summary.total|float %}
+{% set p_hrs       = summary.primary|float %}
+{% set s_hrs       = summary.secondary|float %}
+{% set min_total   = es.min_total %}
+{% set min_primary = es.min_primary %}
+{% set eligible    = hours_ok and primary_ok %}
+{% set total_pct = [[total_hrs / min_total * 100, 0]|max, 100]|min|round(1) %}
+{% set p_pct     = [[p_hrs    / min_total * 100, 0]|max, 100]|min|round(1) %}
+{% set s_pct     = [[total_pct - p_pct, 0]|max, 100 - p_pct]|min|round(1) %}
 
 <div class="card" style="margin-bottom:14px">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -58,32 +57,31 @@
     <span class="badge badge-draft">Not Yet Eligible</span>
     {% endif %}
   </div>
-
   <div style="margin-bottom:12px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
       <div style="display:flex;gap:12px;font-size:0.78rem">
         <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#6abf80;margin-right:4px;vertical-align:middle"></span>Primary {{ '%.1f'|format(p_hrs) }}h</span>
         <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#5ab4c8;margin-right:4px;vertical-align:middle"></span>Secondary {{ '%.1f'|format(s_hrs) }}h</span>
       </div>
-      <span style="font-size:0.82rem;font-weight:700">{{ '%.1f'|format(tc_hrs) }} / {{ tc_min|int }} hrs</span>
+      <span style="font-size:0.82rem;font-weight:700">{{ '%.1f'|format(total_hrs) }} / {{ min_total|int }} hrs</span>
     </div>
     <div style="background:#e8eaed;border-radius:999px;height:10px;overflow:hidden;display:flex">
       <div style="background:#6abf80;height:100%;width:{{ p_pct }}%;transition:width .4s ease;{% if p_pct > 0 and s_pct == 0 %}border-radius:999px{% elif p_pct > 0 %}border-radius:999px 0 0 999px{% endif %}"></div>
       <div style="background:#5ab4c8;height:100%;width:{{ s_pct }}%;transition:width .4s ease;{% if s_pct > 0 %}border-radius:0 999px 999px 0{% endif %}"></div>
     </div>
   </div>
-
   <div style="display:flex;flex-direction:column;gap:5px;font-size:0.82rem">
     <div style="display:flex;align-items:center;gap:8px">
       <span style="color:{% if hours_ok %}var(--green){% else %}var(--red){% endif %};font-weight:700">{% if hours_ok %}✓{% else %}✗{% endif %}</span>
       <span style="color:{% if hours_ok %}var(--green){% else %}var(--red){% endif %}">
-        200+ tax credit hours{% if not hours_ok %} — {{ '%.1f'|format(tc_min - tc_hrs) }} more needed{% endif %}
+        {{ min_total|int }}+ total hours{% if not hours_ok %} — {{ '%.1f'|format(min_total - total_hrs) }} more needed{% endif %}
       </span>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
       <span style="color:{% if primary_ok %}var(--green){% else %}var(--red){% endif %};font-weight:700">{% if primary_ok %}✓{% else %}✗{% endif %}</span>
       <span style="color:{% if primary_ok %}var(--green){% else %}var(--red){% endif %}">
-        {% if primary_ok %}Primary hours exceed Secondary{% else %}Primary hours do not exceed Secondary{% endif %} ({{ '%.1f'|format(p_hrs) }} P vs {{ '%.1f'|format(s_hrs) }} S)
+        {{ min_primary|int }}+ primary hours ({{ '%.1f'|format(p_hrs) }} / {{ min_primary|int }})
+        {% if not primary_ok %} — {{ '%.1f'|format(min_primary - p_hrs) }} more needed{% endif %}
       </span>
     </div>
   </div>

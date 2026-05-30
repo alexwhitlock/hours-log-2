@@ -189,11 +189,16 @@ def profile():
     summary = hours_by_year(d4h_hours_list, tool_records, year)
     years = list(range(2026, date_cls.today().year + 1))
 
+    from settings import get_eligibility_settings, check_eligibility
+    es = get_eligibility_settings(db)
+    hours_ok, primary_ok = check_eligibility(summary, es)
+
     return render_template('profile.html', user=user,
                            summary=summary, year=year, years=years,
                            pending_count=pending_count,
                            draft_count=draft_count,
-                           has_d4h=user.d4h_member_id is not None)
+                           has_d4h=user.d4h_member_id is not None,
+                           es=es, hours_ok=hours_ok, primary_ok=primary_ok)
 
 
 @hours_bp.route('/attendance')
