@@ -275,3 +275,41 @@ def hours_report():
     years = list(range(2026, date.today().year + 1))
     return render_template('admin/hours_report.html',
                            rows=rows, year=year, years=years)
+
+
+# ── Member Detail ─────────────────────────────────────────────────────────────
+
+@admin_bp.route('/admin/members/<int:member_id>')
+@require_role('admin')
+def member_detail(member_id):
+    db = get_db()
+    member = db.get(D4HMember, member_id)
+    if not member:
+        abort(404)
+
+    year = int(request.args.get('year', date.today().year))
+    years = list(range(2026, date.today().year + 1))
+
+    d4h_hours = (db.query(D4HHours)
+                 .filter_by(d4h_member_id=member_id)
+                 .order_by(D4HHours.date.desc())
+                 .all())
+
+    tool_records = []
+    if member.user:
+        tool_records = (db.query(HoursRecord)
+                        .filter_by(user_id=member.user.id)
+                        .order_by(HoursRecord.date.desc())
+                        .all())
+
+    # Year summary
+    from d4h_sync import hours_by_year
+    summary = hours_by_year(d4h_hours, tool_records, year)
+
+    return render_template('admin/member_detail.html',
+                           member=member,
+                           d4h_hours=d4h_hours,
+                           tool_records=tool_records,
+                           summary=summary,
+                           year=year,
+                           years=years)

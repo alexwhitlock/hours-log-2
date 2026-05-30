@@ -166,6 +166,13 @@
       transition: border-color .12s, background .12s;
     }
     input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); background: #fff; }
+    input[type=search] { width:100%; font-size:1rem; font-family:inherit; padding:8px 12px; border:1.5px solid var(--border); border-radius:8px; background:#fafafa; color:var(--text); }
+    input[type=search]:focus { outline:none; border-color:var(--accent); background:#fff; }
+    .filter-bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+    .filter-chips { display:flex; gap:6px; flex-wrap:wrap; }
+    .chip { padding:4px 12px; border-radius:999px; border:1.5px solid var(--border); background:#fff; font-size:0.78rem; font-weight:600; cursor:pointer; color:var(--muted); transition:all .12s; }
+    .chip:hover { border-color:var(--accent); color:var(--accent); }
+    .chip.active { background:var(--accent); border-color:var(--accent); color:#fff; }
     select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
     textarea { height: 90px; resize: vertical; }
 

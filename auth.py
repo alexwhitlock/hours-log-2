@@ -73,7 +73,7 @@ def callback():
         if not user.is_active:
             abort(403, 'Your account has been deactivated.')
         user.display_name = display_name
-        user.last_login_at = datetime.utcnow()
+        user.last_login_at = datetime.now()
 
     # Link to D4H member by google_username if not already linked
     if not user.d4h_member_id:

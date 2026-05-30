@@ -1,0 +1,272 @@
+{% extends 'base.html' %}
+{% block title %}{{ member.name }}{% endblock %}
+{% block container_class %}wide{% endblock %}
+{% block head %}
+<style>
+  @media (max-width: 640px) { .desktop-only { display: none !important; } }
+  @media (min-width: 641px) { .mobile-only  { display: none !important; } }
+  .ht-primary   { background:#d4edda;color:#155724; }
+  .ht-secondary { background:#d1ecf1;color:#0c5460; }
+  .ht-other     { background:#fef7e0;color:#7a5c00; }
+  .ht-none      { background:#ededee;color:#555; }
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>{{ member.name }}</h1>
+    <div style="font-size:0.82rem;color:var(--muted);margin-top:2px">
+      Ref {{ member.ref }}
+      &nbsp;·&nbsp; {{ member.status }}
+      {% if member.user %}&nbsp;·&nbsp; {{ member.user.email }}{% endif %}
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center">
+    {% if years|length > 1 %}
+    <form method="GET" style="display:flex;align-items:center;gap:6px">
+      <select name="year" onchange="this.form.submit()" style="width:auto;padding:6px 28px 6px 10px;font-size:0.88rem;border-radius:6px">
+        {% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+      </select>
+    </form>
+    {% endif %}
+    <a href="/admin/hours-report?year={{ year }}" class="btn btn-outline btn-sm">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="vertical-align:-2px"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Report
+    </a>
+  </div>
+</div>
+
+<!-- Tax credit eligibility -->
+{% set tc_hrs = summary.tax_credit|float %}
+{% set tc_min = 200.0 %}
+{% set tc_pct = [[(tc_hrs / tc_min * 100)|round(1), 0]|max, 100]|min %}
+{% set p_hrs = summary.primary|float %}
+{% set s_hrs = summary.secondary|float %}
+{% set p_pct = [[p_hrs / tc_min * 100, 0]|max, 100]|min|round(1) %}
+{% set s_pct = [[tc_pct - p_pct, 0]|max, 100 - p_pct]|min|round(1) %}
+{% set primary_ok = p_hrs > s_hrs %}
+{% set hours_ok = tc_hrs >= tc_min %}
+{% set eligible = hours_ok and primary_ok %}
+
+<div class="card" style="margin-bottom:14px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div class="card-title" style="margin-bottom:0">{{ year }} Tax Credit Eligibility</div>
+    {% if eligible %}
+    <span class="badge badge-approved">Eligible ✓</span>
+    {% else %}
+    <span class="badge badge-draft">Not Yet Eligible</span>
+    {% endif %}
+  </div>
+
+  <div style="margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+      <div style="display:flex;gap:12px;font-size:0.78rem">
+        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#6abf80;margin-right:4px;vertical-align:middle"></span>Primary {{ '%.1f'|format(p_hrs) }}h</span>
+        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#5ab4c8;margin-right:4px;vertical-align:middle"></span>Secondary {{ '%.1f'|format(s_hrs) }}h</span>
+      </div>
+      <span style="font-size:0.82rem;font-weight:700">{{ '%.1f'|format(tc_hrs) }} / {{ tc_min|int }} hrs</span>
+    </div>
+    <div style="background:#e8eaed;border-radius:999px;height:10px;overflow:hidden;display:flex">
+      <div style="background:#6abf80;height:100%;width:{{ p_pct }}%;transition:width .4s ease;{% if p_pct > 0 and s_pct == 0 %}border-radius:999px{% elif p_pct > 0 %}border-radius:999px 0 0 999px{% endif %}"></div>
+      <div style="background:#5ab4c8;height:100%;width:{{ s_pct }}%;transition:width .4s ease;{% if s_pct > 0 %}border-radius:0 999px 999px 0{% endif %}"></div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:5px;font-size:0.82rem">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="color:{% if hours_ok %}var(--green){% else %}var(--muted){% endif %};font-weight:700">{% if hours_ok %}✓{% else %}○{% endif %}</span>
+      <span style="color:{% if hours_ok %}var(--green){% else %}var(--muted){% endif %}">
+        200+ tax credit hours{% if not hours_ok %} — {{ '%.1f'|format(tc_min - tc_hrs) }} more needed{% endif %}
+      </span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="color:{% if primary_ok %}var(--green){% else %}var(--muted){% endif %};font-weight:700">{% if primary_ok %}✓{% else %}○{% endif %}</span>
+      <span style="color:{% if primary_ok %}var(--green){% else %}var(--muted){% endif %}">
+        Primary hours exceed Secondary ({{ '%.1f'|format(p_hrs) }} P vs {{ '%.1f'|format(s_hrs) }} S)
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- Hours summary -->
+<div class="card" style="margin-bottom:14px">
+  <div class="card-title">{{ year }} Hours Summary</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px">
+    <div style="text-align:center;padding:12px 8px;background:#d4edda;border-radius:8px">
+      <div style="font-size:1.6rem;font-weight:700;color:#155724">{{ '%.1f'|format(p_hrs) }}</div>
+      <div style="font-size:0.72rem;font-weight:700;color:#155724;text-transform:uppercase;letter-spacing:.04em;margin-top:3px">Primary</div>
+    </div>
+    <div style="text-align:center;padding:12px 8px;background:#d1ecf1;border-radius:8px">
+      <div style="font-size:1.6rem;font-weight:700;color:#0c5460">{{ '%.1f'|format(s_hrs) }}</div>
+      <div style="font-size:0.72rem;font-weight:700;color:#0c5460;text-transform:uppercase;letter-spacing:.04em;margin-top:3px">Secondary</div>
+    </div>
+    <div style="text-align:center;padding:12px 8px;background:#fef7e0;border-radius:8px">
+      <div style="font-size:1.6rem;font-weight:700;color:#7a5c00">{{ '%.1f'|format(summary.other|float) }}</div>
+      <div style="font-size:0.72rem;font-weight:700;color:#7a5c00;text-transform:uppercase;letter-spacing:.04em;margin-top:3px">Other</div>
+    </div>
+    <div style="text-align:center;padding:12px 8px;background:#e8f0fe;border-radius:8px">
+      <div style="font-size:1.6rem;font-weight:700;color:#1a73e8">{{ '%.1f'|format(tc_hrs) }}</div>
+      <div style="font-size:0.72rem;font-weight:700;color:#1a73e8;text-transform:uppercase;letter-spacing:.04em;margin-top:3px">Tax Credit</div>
+    </div>
+    <div style="text-align:center;padding:12px 8px;background:#f4f5f7;border-radius:8px">
+      <div style="font-size:1.6rem;font-weight:700;color:#1a1a1a">{{ '%.1f'|format(summary.total|float) }}</div>
+      <div style="font-size:0.72rem;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.04em;margin-top:3px">Total</div>
+    </div>
+  </div>
+</div>
+
+<!-- D4H Attendance -->
+<div class="card" style="margin-bottom:14px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div class="card-title" style="margin-bottom:0">D4H Attendance ({{ d4h_hours|length }} records since 2026-01-01)</div>
+  </div>
+  {% if d4h_hours %}
+  <div class="filter-bar" data-section="d4h">
+    <input type="search" class="filter-text" placeholder="Search activity…" style="font-size:0.88rem;flex:1;min-width:120px">
+    <div class="filter-chips">
+      <button class="chip active" data-type="">All</button>
+      <button class="chip" data-type="primary">Primary</button>
+      <button class="chip" data-type="secondary">Secondary</button>
+      <button class="chip" data-type="other">Other</button>
+      <button class="chip" data-type="none">None</button>
+    </div>
+  </div>
+
+  <!-- Mobile: cards -->
+  <div class="mobile-only" id="d4h-cards">
+    {% for h in d4h_hours %}
+    <div class="record-card" data-search="{{ h.activity_name|lower }} {{ h.activity_type|lower }}" data-type="{{ h.hour_type.value }}" data-source="d4h">
+      <div class="record-card-top">
+        <div>
+          <div class="record-card-cat">{{ h.activity_name or 'Unknown Activity' }}</div>
+          <div class="record-card-meta">{{ h.date.strftime('%Y-%m-%d') }} · {{ h.activity_type|capitalize if h.activity_type else '—' }}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:700;font-size:1rem">{{ '%.2f'|format(h.hours|float) }}h</div>
+          <span class="badge ht-{{ h.hour_type.value }}" style="margin-top:4px">{{ h.hour_type.value|capitalize }}</span>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Desktop: table -->
+  <div class="table-wrap desktop-only" style="box-shadow:none;border-radius:0;margin:0 -16px">
+    <table id="d4h-table">
+      <thead>
+        <tr><th>Date</th><th>Activity</th><th>Type</th><th>Hour Type</th><th style="text-align:right">Hours</th></tr>
+      </thead>
+      <tbody>
+        {% for h in d4h_hours %}
+        <tr data-search="{{ h.activity_name|lower }} {{ h.activity_type|lower }}" data-type="{{ h.hour_type.value }}" data-source="d4h">
+          <td>{{ h.date.strftime('%Y-%m-%d') }}</td>
+          <td>{{ h.activity_name or '—' }}</td>
+          <td style="text-transform:capitalize">{{ h.activity_type or '—' }}</td>
+          <td><span class="badge ht-{{ h.hour_type.value }}">{{ h.hour_type.value|capitalize }}</span></td>
+          <td style="text-align:right;font-weight:600">{{ '%.2f'|format(h.hours|float) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="font-size:0.85rem;color:var(--muted);margin:0">No D4H attendance records.</p>
+  {% endif %}
+</div>
+
+<!-- Hours Log Records -->
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div class="card-title" style="margin-bottom:0">Hours Log Records ({{ tool_records|length }} total)</div>
+  </div>
+  {% if tool_records %}
+  <div class="filter-bar" data-section="hl">
+    <input type="search" class="filter-text" placeholder="Search category or description…" style="font-size:0.88rem;flex:1;min-width:120px">
+    <div class="filter-chips">
+      <button class="chip active" data-type="">All</button>
+      <button class="chip" data-type="primary">Primary</button>
+      <button class="chip" data-type="secondary">Secondary</button>
+      <button class="chip" data-type="other">Other</button>
+      <button class="chip" data-type="none">None</button>
+    </div>
+  </div>
+
+  <!-- Mobile: cards -->
+  <div class="mobile-only" id="hl-cards">
+    {% for r in tool_records %}
+    <div class="record-card" data-search="{{ (r.category.name if r.category else '')|lower }} {{ (r.description or '')|lower }}" data-type="{{ r.category.hour_type.value if r.category else 'none' }}" data-source="hl">
+      <div class="record-card-top">
+        <div>
+          <div class="record-card-cat">{{ r.category.name if r.category else '—' }}</div>
+          <div class="record-card-meta">{{ r.date.strftime('%Y-%m-%d') }}{% if r.description %} · {{ r.description[:60] }}{% if r.description|length > 60 %}…{% endif %}{% endif %}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:700;font-size:1rem">{{ '%.2f'|format(r.hours|float) }}h</div>
+          <span class="badge badge-{{ r.status.value }}" style="margin-top:4px">{{ r.status.value|capitalize }}</span>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Desktop: table -->
+  <div class="table-wrap desktop-only" style="box-shadow:none;border-radius:0;margin:0 -16px">
+    <table id="hl-table">
+      <thead>
+        <tr><th>Date</th><th>Category</th><th>Hour Type</th><th>Description</th><th>Status</th><th style="text-align:right">Hours</th></tr>
+      </thead>
+      <tbody>
+        {% for r in tool_records %}
+        <tr data-search="{{ (r.category.name if r.category else '')|lower }} {{ (r.description or '')|lower }}" data-type="{{ r.category.hour_type.value if r.category else 'none' }}" data-source="hl">
+          <td>{{ r.date.strftime('%Y-%m-%d') }}</td>
+          <td>{{ r.category.name if r.category else '—' }}</td>
+          <td>{% if r.category %}<span class="badge ht-{{ r.category.hour_type.value }}">{{ r.category.hour_type.value|capitalize }}</span>{% else %}—{% endif %}</td>
+          <td style="font-size:0.85rem">{{ r.description or '—' }}</td>
+          <td><span class="badge badge-{{ r.status.value }}">{{ r.status.value|capitalize }}</span></td>
+          <td style="text-align:right;font-weight:600">{{ '%.2f'|format(r.hours|float) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="font-size:0.85rem;color:var(--muted);margin:0">
+    {% if member.user %}No hours log records submitted.{% else %}Member has not logged in to this tool.{% endif %}
+  </p>
+  {% endif %}
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll('.filter-bar').forEach(bar => {
+  const section = bar.dataset.section;
+  const textInput = bar.querySelector('.filter-text');
+  const chips = bar.querySelectorAll('.chip');
+  let activeType = '';
+
+  function applyFilter() {
+    const q = textInput ? textInput.value.toLowerCase().trim() : '';
+    document.querySelectorAll(
+      '#' + section + '-table tbody tr, #' + section + '-cards .record-card'
+    ).forEach(el => {
+      const matchText = !q || (el.dataset.search || '').includes(q);
+      const matchType = !activeType || el.dataset.type === activeType;
+      el.style.display = matchText && matchType ? '' : 'none';
+    });
+  }
+
+  if (textInput) textInput.addEventListener('input', applyFilter);
+
+  chips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      chips.forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      activeType = chip.dataset.type;
+      applyFilter();
+    });
+  });
+});
+</script>
+{% endblock %}

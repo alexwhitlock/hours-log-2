@@ -79,7 +79,7 @@ def edit(record_id):
         record.hours = float(request.form['hours'])
         record.description = request.form.get('description', '').strip() or None
         record.status = RecordStatus.pending if action == 'submit' else RecordStatus.draft
-        record.updated_at = datetime.utcnow()
+        record.updated_at = datetime.now()
         db.add(RecordHistory(
             record_id=record.id,
             action='submitted' if action == 'submit' else 'edited',
@@ -135,3 +135,28 @@ def profile():
                            pending_count=pending_count,
                            draft_count=draft_count,
                            has_d4h=user.d4h_member_id is not None)
+
+
+@hours_bp.route('/attendance')
+@require_login
+def attendance():
+    from datetime import date as date_cls
+    db = get_db()
+    user = db.get(User, session['user_id'])
+
+    d4h_hours = []
+    if user.d4h_member_id:
+        d4h_hours = (db.query(D4HHours)
+                     .filter_by(d4h_member_id=user.d4h_member_id)
+                     .order_by(D4HHours.date.desc())
+                     .all())
+
+    tool_records = (db.query(HoursRecord)
+                    .filter_by(user_id=user.id)
+                    .order_by(HoursRecord.date.desc())
+                    .all())
+
+    return render_template('attendance.html',
+                           user=user,
+                           d4h_hours=d4h_hours,
+                           tool_records=tool_records)

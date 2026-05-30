@@ -58,7 +58,7 @@
   </p>
   {% if last_sync %}
   <p style="font-size:0.82rem;color:var(--muted);margin-bottom:12px">
-    Last synced: <strong style="color:var(--text)">{{ last_sync.strftime('%Y-%m-%d %H:%M') }} UTC</strong>
+    Last synced: <strong style="color:var(--text)">{{ last_sync.strftime('%Y-%m-%d %H:%M') }}</strong>
   </p>
   {% endif %}
   <form method="POST" action="/admin/sync">

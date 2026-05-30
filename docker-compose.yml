@@ -11,4 +11,5 @@ services:
     environment:
       - DB_PATH=/app/data/hours_log.db
       - LOG_DIR=/app/logs
+      - TZ=America/Toronto
     restart: unless-stopped

@@ -31,7 +31,7 @@ def approve(record_id):
         abort(404)
     record.status = RecordStatus.approved
     record.approved_by = session['user_id']
-    record.approved_at = datetime.utcnow()
+    record.approved_at = datetime.now()
     db.add(RecordHistory(
         record_id=record.id, action='approved', performed_by=session['user_id']))
     db.commit()

@@ -196,7 +196,7 @@ def sync_members(config: dict, db, progress=None) -> dict:
             existing.google_username = m.google_account.lower() if m.google_account else None
             existing.status = norm
             existing.count_rolling_hours = current_rolling
-            existing.last_synced_at = datetime.utcnow()
+            existing.last_synced_at = datetime.now()
             if not was_retired and is_retired:
                 user = db.query(User).filter_by(d4h_member_id=mid).first()
                 if user and user.is_active:
@@ -218,7 +218,7 @@ def sync_members(config: dict, db, progress=None) -> dict:
                 google_username=m.google_account.lower() if m.google_account else None,
                 status=norm,
                 count_rolling_hours=current_rolling,
-                last_synced_at=datetime.utcnow(),
+                last_synced_at=datetime.now(),
             ))
             added += 1
 
@@ -310,7 +310,7 @@ def sync_hours(config: dict, db, changed_member_ids=None, progress=None) -> dict
                 existing.hour_type = hour_type
                 existing.hours = hours
                 existing.activity_name = rec['activity_name']
-                existing.synced_at = datetime.utcnow()
+                existing.synced_at = datetime.now()
             else:
                 db.add(D4HHours(
                     d4h_attendance_id=rec['attendance_id'],
@@ -321,7 +321,7 @@ def sync_hours(config: dict, db, changed_member_ids=None, progress=None) -> dict
                     hour_type=hour_type,
                     date=date.fromisoformat(rec['date']),
                     hours=hours,
-                    synced_at=datetime.utcnow(),
+                    synced_at=datetime.now(),
                 ))
             upserted += 1
 

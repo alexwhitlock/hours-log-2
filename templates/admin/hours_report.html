@@ -95,7 +95,7 @@
       {% set ns.tot = ns.tot + row.total %}
       <tr {% if not row.has_login %}class="no-login"{% endif %}
           data-vals="{{ row.member.name }}|{{ row.member.ref }}|{{ row.p_d4h }}|{{ row.p_tool }}|{{ row.s_d4h }}|{{ row.s_tool }}|{{ row.o_d4h }}|{{ row.o_tool }}|{{ row.tax_credit }}|{{ row.total }}|{{ 1 if row.has_login else 0 }}">
-        <td style="font-weight:600">{{ row.member.name }}</td>
+        <td style="font-weight:600"><a href="/admin/members/{{ row.member.id }}?year={{ year }}" style="color:inherit;text-decoration:none;border-bottom:1px solid var(--border)">{{ row.member.name }}</a></td>
         <td>{{ row.member.ref }}</td>
         <td class="col-group">{{ '%.1f'|format(row.p_d4h) }}</td>
         <td>{{ '%.1f'|format(row.p_tool) }}</td>
