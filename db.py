@@ -70,7 +70,23 @@ def run_migrations() -> None:
                         tax_credit_notified_year INTEGER
                     )
                 '''))
-                conn.execute(sql('INSERT INTO users_new SELECT * FROM users'))
+                conn.execute(sql('''
+                    INSERT INTO users_new
+                        (id, google_sub, email, username, display_name, role,
+                         d4h_member_id, is_active, created_at, last_login_at,
+                         notify_approval, notify_pending, notify_monthly_summary,
+                         notify_tax_credit, last_weekly_sent, tax_credit_notified_year)
+                    SELECT
+                        id, google_sub, email, username, display_name, role,
+                        d4h_member_id, is_active, created_at, last_login_at,
+                        COALESCE(notify_approval, 'weekly'),
+                        COALESCE(notify_pending, 'weekly'),
+                        COALESCE(notify_monthly_summary, 0),
+                        COALESCE(notify_tax_credit, 1),
+                        last_weekly_sent,
+                        tax_credit_notified_year
+                    FROM users
+                '''))
                 conn.execute(sql('DROP TABLE users'))
                 conn.execute(sql('ALTER TABLE users_new RENAME TO users'))
                 conn.execute(sql('PRAGMA foreign_keys=ON'))
