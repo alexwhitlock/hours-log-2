@@ -39,11 +39,18 @@
     that created it. Before generating, the system checks whether a record already exists for
     that assignment in that month. Manual records are never affected.
   </p>
-  <p style="margin-bottom:0">
+  <p style="margin-bottom:8px">
     <strong>Generate Now</strong> backfills any <em>past</em> months (from the member's start date
     up to last month) that are missing a record, with pro-ration applied to partial months.
     It does not touch the current month — that will be created automatically at month end.
     Safe to click multiple times.
+  </p>
+  <p style="margin-bottom:0">
+    <strong>D4H submission:</strong> Auto-generated records are treated identically to manually
+    approved records and are included in the nightly D4H submission. They are summed with any
+    other hours of the same type for that member and month, and submitted to the shared
+    <em>Hours Log: Primary / Secondary / Other — YYYY-MM</em> events in D4H.
+    The per-role breakdown is visible here in the Hours Log tool; D4H shows the combined monthly total.
   </p>
 </div>
 
