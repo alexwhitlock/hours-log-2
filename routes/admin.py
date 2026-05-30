@@ -431,6 +431,22 @@ def toggle_role(role_id):
     return redirect(url_for('admin.roles'))
 
 
+@admin_bp.route('/admin/roles/<int:role_id>/delete', methods=['POST'])
+@require_role('admin')
+def delete_role(role_id):
+    db = get_db()
+    role = db.get(AdminRole, role_id)
+    if not role:
+        abort(404)
+    if role.is_active:
+        flash('Deactivate the role before deleting.', 'error')
+        return redirect(url_for('admin.roles'))
+    db.delete(role)
+    db.commit()
+    flash(f'Role "{role.name}" deleted.')
+    return redirect(url_for('admin.roles'))
+
+
 @admin_bp.route('/admin/roles/<int:role_id>/assign', methods=['POST'])
 @require_role('admin')
 def assign_role(role_id):

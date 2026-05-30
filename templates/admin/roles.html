@@ -101,6 +101,12 @@
           {{ 'Deactivate' if role.is_active else 'Activate' }}
         </button>
       </form>
+      {% if not role.is_active %}
+      <form method="POST" action="/admin/roles/{{ role.id }}/delete" style="display:inline"
+            onsubmit="return confirm('Delete role {{ role.name }}? This cannot be undone.')">
+        <button type="submit" class="btn btn-red btn-sm">Delete</button>
+      </form>
+      {% endif %}
     </div>
   </div>
 
