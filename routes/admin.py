@@ -307,9 +307,15 @@ def _run_sync_background(config: dict) -> None:
     db = _Session()
     try:
         result = sync_all(config, db, progress=_progress)
+        logger.info('Sync complete — starting submission step')
         _progress('submit', 'Submitting approved hours to D4H…', 98)
-        submit_result = run_submission(db, config)
-        result['submission'] = submit_result
+        try:
+            submit_result = run_submission(db, config)
+            result['submission'] = submit_result
+            logger.info(f'Submission complete: {submit_result}')
+        except Exception as sub_e:
+            logger.exception('Submission step failed')
+            result['submission'] = {'error': str(sub_e)}
         _sync_status.update({
             'running': False, 'result': result, 'error': None,
             'phase': 'done', 'message': 'Sync & submit complete', 'percent': 100,
@@ -323,6 +329,11 @@ def _run_sync_background(config: dict) -> None:
         })
     finally:
         db.close()
+        # Safety net — ensure running is never left True
+        if _sync_status.get('running'):
+            logger.error('Sync status stuck — forcing reset')
+            _sync_status.update({'running': False, 'error': 'Sync ended unexpectedly',
+                                 'phase': 'error', 'percent': 0})
 
 
 @admin_bp.route('/admin/sync', methods=['POST'])
