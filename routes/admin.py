@@ -240,19 +240,29 @@ def hours_report():
         d4h_hrs = d4h_by_member.get(m.id, [])
         tool_hrs = tool_by_member.get(m.id, [])
 
-        def _sum(items, types):
-            return sum((float(h.hours) for h in items if h.hour_type.value in types), 0.0)
+        def _d4h(types):
+            return sum((float(h.hours) for h in d4h_hrs if h.hour_type.value in types), 0.0)
 
-        primary   = _sum(d4h_hrs, ('primary',)) + sum(float(r.hours) for r in tool_hrs if r.category and r.category.hour_type.value == 'primary')
-        secondary = _sum(d4h_hrs, ('secondary',)) + sum(float(r.hours) for r in tool_hrs if r.category and r.category.hour_type.value == 'secondary')
-        other     = _sum(d4h_hrs, ('other', 'none')) + sum(float(r.hours) for r in tool_hrs if r.category and r.category.hour_type.value in ('other', 'none'))
-        tax_credit = primary + secondary
+        def _tool(types):
+            return sum((float(r.hours) for r in tool_hrs
+                        if r.category and r.category.hour_type.value in types), 0.0)
+
+        p_d4h  = _d4h(('primary',))
+        p_tool = _tool(('primary',))
+        s_d4h  = _d4h(('secondary',))
+        s_tool = _tool(('secondary',))
+        o_d4h  = _d4h(('other', 'none'))
+        o_tool = _tool(('other', 'none'))
+        tax_credit = p_d4h + p_tool + s_d4h + s_tool
 
         rows.append({
             'member': m,
             'has_login': m.user is not None and m.user.is_active,
-            'primary': primary, 'secondary': secondary, 'other': other,
-            'tax_credit': tax_credit, 'total': tax_credit + other,
+            'p_d4h': p_d4h, 'p_tool': p_tool,
+            's_d4h': s_d4h, 's_tool': s_tool,
+            'o_d4h': o_d4h, 'o_tool': o_tool,
+            'tax_credit': tax_credit,
+            'total': tax_credit + o_d4h + o_tool,
         })
 
     years = list(range(2026, date.today().year + 1))

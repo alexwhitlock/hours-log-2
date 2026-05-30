@@ -6,6 +6,12 @@
   @media (min-width: 641px) { .mobile-only  { display: none !important; } }
   .tax-credit { color: var(--accent); font-weight: 700; }
   .no-login { opacity: .55; }
+  .table-wrap th { cursor: pointer; user-select: none; white-space: nowrap; }
+  .table-wrap th:hover { background: var(--hover); }
+  .table-wrap th.sort-asc::after  { content: ' ▲'; font-size: 0.7em; opacity: 0.7; }
+  .table-wrap th.sort-desc::after { content: ' ▼'; font-size: 0.7em; opacity: 0.7; }
+  .col-group { border-left: 2px solid var(--border); }
+  th small, td small { display: block; font-size: 0.72rem; font-weight: 400; color: var(--muted); }
 </style>
 {% endblock %}
 {% block content %}
@@ -23,9 +29,9 @@
 </div>
 
 <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px">
-  Includes D4H hours (synced) + tool hours (approved/submitted).
-  <strong>Tax credit</strong> = Primary + Secondary.
-  Greyed members have not logged in to this tool.
+  D4H = synced attendance hours &nbsp;·&nbsp; Tool = approved/submitted records from this app.
+  <strong>Tax credit</strong> = Primary + Secondary (all sources).
+  Greyed members have not logged in to this tool. Click column headers to sort.
 </p>
 
 {% if rows %}
@@ -45,9 +51,10 @@
       </div>
     </div>
     <div style="display:flex;gap:10px;margin-top:6px;font-size:0.78rem;color:var(--muted)">
-      <span>P: <strong style="color:var(--text)">{{ '%.1f'|format(row.primary) }}</strong></span>
-      <span>S: <strong style="color:var(--text)">{{ '%.1f'|format(row.secondary) }}</strong></span>
-      <span>O: <strong style="color:var(--text)">{{ '%.1f'|format(row.other) }}</strong></span>
+      <span>P D4H: <strong>{{ '%.1f'|format(row.p_d4h) }}</strong></span>
+      <span>P Tool: <strong>{{ '%.1f'|format(row.p_tool) }}</strong></span>
+      <span>S D4H: <strong>{{ '%.1f'|format(row.s_d4h) }}</strong></span>
+      <span>S Tool: <strong>{{ '%.1f'|format(row.s_tool) }}</strong></span>
     </div>
   </div>
   {% endfor %}
@@ -55,54 +62,63 @@
 
 <!-- Desktop: table -->
 <div class="table-wrap desktop-only">
-  <table>
+  <table id="report-table">
     <thead>
       <tr>
-        <th>Member</th>
-        <th>Ref</th>
-        <th>Primary</th>
-        <th>Secondary</th>
-        <th>Other</th>
-        <th>Tax Credit</th>
-        <th>Total</th>
+        <th data-col="0">Member</th>
+        <th data-col="1">Ref</th>
+        <th data-col="2" class="col-group">Primary<small>D4H</small></th>
+        <th data-col="3">Primary<small>Tool</small></th>
+        <th data-col="4" class="col-group">Secondary<small>D4H</small></th>
+        <th data-col="5">Secondary<small>Tool</small></th>
+        <th data-col="6" class="col-group">Other<small>D4H + Tool</small></th>
+        <th data-col="7" class="col-group tax-credit">Tax Credit</th>
+        <th data-col="8">Total</th>
         <th>Login</th>
       </tr>
     </thead>
-    <tbody>
-      {% set ns = namespace(tot_p=0, tot_s=0, tot_o=0, tot_tc=0, tot_all=0) %}
+    <tbody id="report-body">
+      {% set ns = namespace(pd=0,pt=0,sd=0,st=0,od=0,ot=0,tc=0,tot=0) %}
       {% for row in rows %}
-      {% set ns.tot_p = ns.tot_p + row.primary %}
-      {% set ns.tot_s = ns.tot_s + row.secondary %}
-      {% set ns.tot_o = ns.tot_o + row.other %}
-      {% set ns.tot_tc = ns.tot_tc + row.tax_credit %}
-      {% set ns.tot_all = ns.tot_all + row.total %}
-      <tr {% if not row.has_login %}class="no-login"{% endif %}>
+      {% set ns.pd = ns.pd + row.p_d4h %}
+      {% set ns.pt = ns.pt + row.p_tool %}
+      {% set ns.sd = ns.sd + row.s_d4h %}
+      {% set ns.st = ns.st + row.s_tool %}
+      {% set ns.od = ns.od + row.o_d4h %}
+      {% set ns.ot = ns.ot + row.o_tool %}
+      {% set ns.tc = ns.tc + row.tax_credit %}
+      {% set ns.tot = ns.tot + row.total %}
+      <tr {% if not row.has_login %}class="no-login"{% endif %}
+          data-vals="{{ row.member.name }}|{{ row.member.ref }}|{{ row.p_d4h }}|{{ row.p_tool }}|{{ row.s_d4h }}|{{ row.s_tool }}|{{ row.o_d4h + row.o_tool }}|{{ row.tax_credit }}|{{ row.total }}">
         <td style="font-weight:600">{{ row.member.name }}</td>
         <td style="color:var(--muted);font-family:monospace;font-size:0.85rem">{{ row.member.ref }}</td>
-        <td>{{ '%.1f'|format(row.primary) }}</td>
-        <td>{{ '%.1f'|format(row.secondary) }}</td>
-        <td>{{ '%.1f'|format(row.other) }}</td>
-        <td class="tax-credit">{{ '%.1f'|format(row.tax_credit) }}</td>
+        <td class="col-group">{{ '%.1f'|format(row.p_d4h) }}</td>
+        <td>{{ '%.1f'|format(row.p_tool) }}</td>
+        <td class="col-group">{{ '%.1f'|format(row.s_d4h) }}</td>
+        <td>{{ '%.1f'|format(row.s_tool) }}</td>
+        <td class="col-group">{{ '%.1f'|format(row.o_d4h + row.o_tool) }}</td>
+        <td class="col-group tax-credit">{{ '%.1f'|format(row.tax_credit) }}</td>
         <td style="font-weight:600">{{ '%.1f'|format(row.total) }}</td>
         <td>
-          {% if row.has_login %}
-          <span class="badge badge-approved">Yes</span>
-          {% else %}
-          <span class="badge badge-draft">No</span>
-          {% endif %}
+          {% if row.has_login %}<span class="badge badge-approved">Yes</span>
+          {% else %}<span class="badge badge-draft">No</span>{% endif %}
         </td>
       </tr>
       {% endfor %}
+    </tbody>
+    <tfoot>
       <tr style="background:#f8f9fa;font-weight:700;border-top:2px solid var(--border)">
         <td colspan="2">Totals ({{ rows|length }} members)</td>
-        <td>{{ '%.1f'|format(ns.tot_p) }}</td>
-        <td>{{ '%.1f'|format(ns.tot_s) }}</td>
-        <td>{{ '%.1f'|format(ns.tot_o) }}</td>
-        <td class="tax-credit">{{ '%.1f'|format(ns.tot_tc) }}</td>
-        <td>{{ '%.1f'|format(ns.tot_all) }}</td>
+        <td class="col-group">{{ '%.1f'|format(ns.pd) }}</td>
+        <td>{{ '%.1f'|format(ns.pt) }}</td>
+        <td class="col-group">{{ '%.1f'|format(ns.sd) }}</td>
+        <td>{{ '%.1f'|format(ns.st) }}</td>
+        <td class="col-group">{{ '%.1f'|format(ns.od + ns.ot) }}</td>
+        <td class="col-group tax-credit">{{ '%.1f'|format(ns.tc) }}</td>
+        <td>{{ '%.1f'|format(ns.tot) }}</td>
         <td></td>
       </tr>
-    </tbody>
+    </tfoot>
   </table>
 </div>
 
@@ -113,4 +129,36 @@
 </div>
 {% endif %}
 
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const tbody = document.getElementById('report-body');
+  if (!tbody) return;
+  let sortCol = -1, sortAsc = true;
+
+  document.querySelectorAll('#report-table thead th[data-col]').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = +th.dataset.col;
+      if (sortCol === col) { sortAsc = !sortAsc; }
+      else { sortCol = col; sortAsc = col <= 1; }
+
+      document.querySelectorAll('#report-table thead th').forEach(h => {
+        h.classList.remove('sort-asc', 'sort-desc');
+      });
+      th.classList.add(sortAsc ? 'sort-asc' : 'sort-desc');
+
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      rows.sort((a, b) => {
+        const av = a.dataset.vals.split('|')[col];
+        const bv = b.dataset.vals.split('|')[col];
+        const an = parseFloat(av), bn = parseFloat(bv);
+        const cmp = isNaN(an) ? av.localeCompare(bv) : an - bn;
+        return sortAsc ? cmp : -cmp;
+      });
+      rows.forEach(r => tbody.appendChild(r));
+    });
+  });
+})();
+</script>
 {% endblock %}
