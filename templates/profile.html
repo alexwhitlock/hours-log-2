@@ -29,14 +29,22 @@
     <span class="badge badge-draft" style="font-size:0.78rem">Not Yet Eligible</span>
     {% endif %}
   </div>
-  <!-- Progress toward 200 hrs -->
+  <!-- Progress toward 200 hrs — stacked primary/secondary bar -->
+  {% set p_hrs = summary.primary|float %}
+  {% set s_hrs = summary.secondary|float %}
+  {% set p_pct = [[p_hrs / tc_min * 100, 0]|max, 100]|min|round(1) %}
+  {% set s_pct = [[tc_pct - p_pct, 0]|max, 100 - p_pct]|min|round(1) %}
   <div style="margin-bottom:10px">
-    <div style="display:flex;justify-content:space-between;margin-bottom:5px">
-      <span style="font-size:0.82rem;color:var(--muted)">Tax credit hours (Primary + Secondary)</span>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+      <div style="display:flex;gap:12px;font-size:0.78rem">
+        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#2d7d46;margin-right:4px;vertical-align:middle"></span>Primary {{ '%.1f'|format(p_hrs) }}h</span>
+        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#1a6b7a;margin-right:4px;vertical-align:middle"></span>Secondary {{ '%.1f'|format(s_hrs) }}h</span>
+      </div>
       <span style="font-size:0.82rem;font-weight:700">{{ '%.1f'|format(tc_hrs) }} / {{ tc_min|int }} hrs</span>
     </div>
-    <div style="background:#e8eaed;border-radius:999px;height:10px;overflow:hidden">
-      <div style="background:{% if eligible %}var(--green){% elif tc_pct >= 50 %}var(--accent){% else %}#f0a500{% endif %};height:100%;border-radius:999px;width:{{ tc_pct }}%;transition:width .4s ease"></div>
+    <div style="background:#e8eaed;border-radius:999px;height:10px;overflow:hidden;display:flex">
+      <div style="background:#2d7d46;height:100%;width:{{ p_pct }}%;transition:width .4s ease;{% if p_pct > 0 and s_pct == 0 %}border-radius:999px{% elif p_pct > 0 %}border-radius:999px 0 0 999px{% endif %}"></div>
+      <div style="background:#1a6b7a;height:100%;width:{{ s_pct }}%;transition:width .4s ease;{% if s_pct > 0 %}border-radius:0 999px 999px 0{% endif %}"></div>
     </div>
   </div>
   <!-- Conditions -->
