@@ -114,6 +114,43 @@
   </div>
 </div>
 
-<a href="/auth/logout" class="btn btn-grey btn-full" style="margin-top:4px">Sign Out</a>
+<!-- Notification Preferences -->
+<div class="card" style="margin-top:14px">
+  <div class="card-title">Notification Preferences</div>
+  <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px">
+    Emails sent to <strong>{{ user.email }}</strong>
+  </p>
+  <form method="POST" action="/profile/notifications">
+    <div class="field" style="margin-bottom:14px">
+      <label>When my record is approved or rejected</label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">
+        {% for val, label in [('off','Off'),('realtime','Real-time'),('weekly','Weekly digest')] %}
+        <label style="display:flex;align-items:center;gap:6px;font-size:0.9rem;font-weight:400;cursor:pointer">
+          <input type="radio" name="notify_approval" value="{{ val }}"
+                 {% if user.notify_approval.value == val %}checked{% endif %}>
+          {{ label }}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    {% if user.role.value in ('approver', 'admin') %}
+    <div class="field" style="margin-bottom:14px">
+      <label>When a new record is submitted for approval</label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">
+        {% for val, label in [('off','Off'),('realtime','Real-time'),('weekly','Weekly digest')] %}
+        <label style="display:flex;align-items:center;gap:6px;font-size:0.9rem;font-weight:400;cursor:pointer">
+          <input type="radio" name="notify_pending" value="{{ val }}"
+                 {% if user.notify_pending.value == val %}checked{% endif %}>
+          {{ label }}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    <button type="submit" class="btn btn-sm">Save Preferences</button>
+  </form>
+</div>
+
+<a href="/auth/logout" class="btn btn-grey btn-full" style="margin-top:14px">Sign Out</a>
 
 {% endblock %}

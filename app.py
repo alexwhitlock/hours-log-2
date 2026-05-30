@@ -76,9 +76,14 @@ def create_app() -> Flask:
     init_db(database_url)
     app.teardown_appcontext(close_db)
 
+    from mail import init_mail
+    init_mail(config)
+
     # Create all tables (no Alembic needed for SQLite)
     from models import Base
     Base.metadata.create_all(get_engine())
+    from db import run_migrations
+    run_migrations()
     logger.info('Database tables ready.')
 
     # Google OAuth
@@ -127,8 +132,70 @@ def create_app() -> Flask:
         from flask import jsonify
         return jsonify({'status': 'ok'})
 
+    _start_weekly_scheduler(app)
+
     logger.info('hours-log ready.')
     return app
+
+
+def _start_weekly_scheduler(app: 'Flask') -> None:
+    import threading
+    from datetime import datetime, timedelta
+
+    def _run():
+        import time
+        while True:
+            time.sleep(3600)  # check every hour
+            try:
+                _send_weekly_digests(app)
+            except Exception:
+                logger.exception('Weekly digest error')
+
+    t = threading.Thread(target=_run, daemon=True, name='weekly-digest')
+    t.start()
+    logger.info('Weekly digest scheduler started.')
+
+
+def _send_weekly_digests(app: 'Flask') -> None:
+    from datetime import datetime, timedelta
+    from decimal import Decimal
+    from db import _Session
+    from models import User, NotifyPref, HoursRecord, RecordStatus, D4HHours
+    from mail import send_weekly_summary
+    from d4h_sync import hours_by_year
+
+    cutoff = datetime.now() - timedelta(days=7)
+    db = _Session()
+    try:
+        users = db.query(User).filter(
+            User.is_active == True,
+            User.notify_approval == NotifyPref.weekly,
+        ).all()
+        year = datetime.now().year
+        sent = 0
+        for user in users:
+            if user.last_weekly_sent and user.last_weekly_sent > cutoff:
+                continue
+            tool_records = db.query(HoursRecord).filter_by(user_id=user.id).all()
+            d4h_hours = db.query(D4HHours).filter_by(
+                d4h_member_id=user.d4h_member_id).all() if user.d4h_member_id else []
+            summary = hours_by_year(d4h_hours, tool_records, year)
+            pending = sum(1 for r in tool_records if r.status == RecordStatus.pending)
+            week_ago = datetime.now() - timedelta(days=7)
+            approved_week = sum(
+                1 for r in tool_records
+                if r.status == RecordStatus.approved
+                and r.approved_at and r.approved_at > week_ago
+            )
+            if send_weekly_summary(user.email, user.display_name, pending,
+                                   approved_week, float(summary['tax_credit'])):
+                user.last_weekly_sent = datetime.now()
+                sent += 1
+        db.commit()
+        if sent:
+            logger.info(f'Weekly digest: sent {sent} emails')
+    finally:
+        db.close()
 
 
 app = create_app()

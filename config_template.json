@@ -5,5 +5,10 @@
   "ALLOWED_DOMAIN": "sbo-ovsar.ca",
   "D4H_API_TOKEN": "<D4H personal access token>",
   "D4H_TEAM_ID": "<D4H team ID>",
-  "D4H_GOOGLE_FIELD_ID": "1817"
+  "D4H_GOOGLE_FIELD_ID": "1817",
+  "SMTP_HOST": "smtp.gmail.com",
+  "SMTP_PORT": 587,
+  "SMTP_USERNAME": "automations@sbo-ovsar.ca",
+  "SMTP_PASSWORD": "<Gmail app password — generate at myaccount.google.com/apppasswords>",
+  "SMTP_FROM": "SBO-OVSAR Hours Log <automations@sbo-ovsar.ca>"
 }

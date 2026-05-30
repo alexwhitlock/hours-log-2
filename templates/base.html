@@ -289,5 +289,24 @@
 {% endif %}
 
 {% block scripts %}{% endblock %}
+<script>
+function tableFilter(inputId, tableBodyId, cardsId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  input.addEventListener('input', function() {
+    const q = this.value.toLowerCase().trim();
+    if (tableBodyId) {
+      document.querySelectorAll('#' + tableBodyId + ' tr').forEach(row => {
+        row.style.display = !q || (row.dataset.search || row.textContent.toLowerCase()).includes(q) ? '' : 'none';
+      });
+    }
+    if (cardsId) {
+      document.querySelectorAll('#' + cardsId + ' .record-card').forEach(card => {
+        card.style.display = !q || (card.dataset.search || card.textContent.toLowerCase()).includes(q) ? '' : 'none';
+      });
+    }
+  });
+}
+</script>
 </body>
 </html>

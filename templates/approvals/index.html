@@ -6,6 +6,7 @@
   @media (min-width: 641px) { .mobile-only  { display: none !important; } }
 </style>
 {% endblock %}
+{% block container_class %}wide{% endblock %}
 {% block content %}
 
 <div class="page-header">
@@ -14,11 +15,13 @@
 </div>
 
 {% if records %}
+<input type="search" id="approvals-search" placeholder="Search member, category, or description…"
+       style="width:100%;margin-bottom:10px">
 
 <!-- Mobile: cards -->
-<div class="mobile-only">
+<div class="mobile-only" id="approvals-cards">
   {% for r in records %}
-  <div class="record-card">
+  <div class="record-card" data-search="{{ r.user.display_name|lower }} {{ r.category.name|lower }} {{ (r.description or '')|lower }}">
     <div class="record-card-top">
       <div>
         <div class="record-card-meta">{{ r.user.display_name }} · {{ r.date.strftime('%b %d, %Y') }}</div>
@@ -48,14 +51,14 @@
     <thead>
       <tr><th>Member</th><th>Date</th><th>Category</th><th>Hrs</th><th>Description</th><th></th></tr>
     </thead>
-    <tbody>
+    <tbody id="approvals-body">
       {% for r in records %}
-      <tr>
+      <tr data-search="{{ r.user.display_name|lower }} {{ r.category.name|lower }} {{ (r.description or '')|lower }}">
         <td style="font-weight:600">{{ r.user.display_name }}</td>
-        <td style="white-space:nowrap;color:var(--muted)">{{ r.date.strftime('%b %d, %Y') }}</td>
+        <td style="white-space:nowrap">{{ r.date.strftime('%b %d, %Y') }}</td>
         <td>{{ r.category.name }}</td>
         <td style="font-weight:600">{{ '%.1f'|format(r.hours|float) }}</td>
-        <td style="color:var(--muted);font-size:0.85rem">{{ r.description or '—' }}</td>
+        <td style="font-size:0.85rem">{{ r.description or '—' }}</td>
         <td style="white-space:nowrap">
           <form method="POST" action="/approvals/{{ r.id }}/approve" style="display:inline">
             <button type="submit" class="btn btn-green btn-sm">Approve</button>
@@ -78,4 +81,7 @@
 </div>
 {% endif %}
 
+{% endblock %}
+{% block scripts %}
+<script>tableFilter('approvals-search', 'approvals-body', 'approvals-cards');</script>
 {% endblock %}

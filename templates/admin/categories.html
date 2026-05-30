@@ -41,10 +41,12 @@
 
 {% if categories %}
 
+<input type="search" id="cats-search" placeholder="Search categories…" style="width:100%;margin-bottom:10px">
+
 <!-- Mobile: cards -->
-<div class="mobile-only">
+<div class="mobile-only" id="cats-cards">
   {% for cat in categories %}
-  <div class="record-card" {% if not cat.is_active %}style="opacity:.5"{% endif %}>
+  <div class="record-card" data-search="{{ cat.name|lower }} {{ cat.hour_type.value }}" {% if not cat.is_active %}style="opacity:.5"{% endif %}>
     <div class="record-card-top">
       <div>
         <div class="record-card-cat">{{ cat.name }}</div>
@@ -68,9 +70,9 @@
 <div class="table-wrap desktop-only">
   <table>
     <thead><tr><th>Name</th><th>Hour Type</th><th>Status</th><th></th></tr></thead>
-    <tbody>
+    <tbody id="cats-body">
       {% for cat in categories %}
-      <tr {% if not cat.is_active %}style="opacity:.5"{% endif %}>
+      <tr data-search="{{ cat.name|lower }} {{ cat.hour_type.value }}" {% if not cat.is_active %}style="opacity:.5"{% endif %}>
         <td style="font-weight:600">{{ cat.name }}</td>
         <td><span class="badge ht-{{ cat.hour_type.value }}">{{ cat.hour_type.value|capitalize }}</span></td>
         <td>{% if cat.is_active %}<span class="badge badge-approved">Active</span>{% else %}<span class="badge badge-draft">Inactive</span>{% endif %}</td>
@@ -94,4 +96,7 @@
   The hour type determines how records count toward the volunteer tax credit.
 </p>
 
+{% endblock %}
+{% block scripts %}
+<script>tableFilter('cats-search', 'cats-body', 'cats-cards');</script>
 {% endblock %}

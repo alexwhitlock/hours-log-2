@@ -6,6 +6,7 @@
   @media (min-width: 641px) { .mobile-only  { display: none !important; } }
 </style>
 {% endblock %}
+{% block container_class %}wide{% endblock %}
 {% block content %}
 
 <div class="page-header">
@@ -14,11 +15,13 @@
 </div>
 
 {% if records %}
+<input type="search" id="hours-search" placeholder="Search category or description…"
+       style="width:100%;margin-bottom:10px">
 
 <!-- Mobile: cards -->
-<div class="mobile-only">
+<div class="mobile-only" id="hours-cards">
   {% for r in records %}
-  <div class="record-card">
+  <div class="record-card" data-search="{{ r.category.name|lower }} {{ (r.description or '')|lower }} {{ r.status.value }}">
     <div class="record-card-top">
       <div>
         <div class="record-card-meta">{{ r.date.strftime('%B %d, %Y') }}</div>
@@ -44,13 +47,13 @@
     <thead>
       <tr><th>Date</th><th>Category</th><th>Hours</th><th>Description</th><th>Status</th><th></th></tr>
     </thead>
-    <tbody>
+    <tbody id="hours-body">
       {% for r in records %}
-      <tr>
+      <tr data-search="{{ r.category.name|lower }} {{ (r.description or '')|lower }} {{ r.status.value }}">
         <td style="white-space:nowrap">{{ r.date.strftime('%b %d, %Y') }}</td>
         <td>{{ r.category.name }}</td>
         <td style="font-weight:600">{{ '%.1f'|format(r.hours|float) }}</td>
-        <td style="color:var(--muted);font-size:0.85rem">{{ r.description or '—' }}</td>
+        <td style="font-size:0.85rem">{{ r.description or '—' }}</td>
         <td><span class="badge badge-{{ r.status.value }}">{{ r.status.value }}</span></td>
         <td style="white-space:nowrap">
           {% if r.status.value == 'draft' %}<a href="/hours/{{ r.id }}/edit" class="btn btn-outline btn-sm">Edit</a>{% endif %}
@@ -78,4 +81,7 @@
   {% endif %}
 </div>
 
+{% endblock %}
+{% block scripts %}
+<script>tableFilter('hours-search', 'hours-body', 'hours-cards');</script>
 {% endblock %}

@@ -5,7 +5,8 @@ from flask import (Blueprint, abort, flash, redirect, render_template, request,
 
 from auth import require_login
 from db import get_db
-from models import Category, D4HHours, HoursRecord, RecordHistory, RecordStatus, User
+from models import (Category, D4HHours, HoursRecord, RecordHistory,
+                    RecordStatus, User, NotifyPref, UserRole)
 
 hours_bp = Blueprint('hours', __name__)
 
@@ -47,6 +48,19 @@ def new():
             performed_by=session['user_id'],
         ))
         db.commit()
+
+        if action == 'submit':
+            from mail import notify_pending_submitted
+            approvers = db.query(User).filter(
+                User.role.in_([UserRole.approver, UserRole.admin]),
+                User.is_active == True,
+                User.notify_pending == NotifyPref.realtime,
+            ).all()
+            submitter = db.get(User, session['user_id'])
+            for approver in approvers:
+                notify_pending_submitted(approver.email, approver.display_name,
+                                         submitter.display_name, record)
+
         flash('Submitted for approval.' if action == 'submit' else 'Saved as draft.')
         return redirect(url_for('hours.index'))
 
@@ -106,6 +120,22 @@ def history(record_id):
     if not record:
         abort(404)
     return render_template('hours/history.html', record=record)
+
+
+@hours_bp.route('/profile/notifications', methods=['POST'])
+@require_login
+def save_notifications():
+    db = get_db()
+    user = db.get(User, session['user_id'])
+    pref = request.form.get('notify_approval', 'off')
+    pref_pending = request.form.get('notify_pending', 'off')
+    if pref in ('off', 'realtime', 'weekly'):
+        user.notify_approval = NotifyPref(pref)
+    if pref_pending in ('off', 'realtime', 'weekly'):
+        user.notify_pending = NotifyPref(pref_pending)
+    db.commit()
+    flash('Notification preferences saved.')
+    return redirect(url_for('hours.profile'))
 
 
 @hours_bp.route('/profile')

@@ -6,35 +6,40 @@
   @media (min-width: 641px) { .mobile-only  { display: none !important; } }
 </style>
 {% endblock %}
+{% block container_class %}wide{% endblock %}
 {% block content %}
 
 <div class="page-header">
-  <h1>All Records</h1>
+  <h1>All Hours Log Records</h1>
   <div style="display:flex;align-items:center;gap:10px">
     <span style="font-size:0.85rem;color:var(--muted);font-weight:600">{{ records|length }} shown</span>
     <a href="/admin" class="btn btn-outline btn-sm"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="vertical-align:-2px"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Admin</a>
   </div>
 </div>
 
-<div class="card" style="padding:12px 14px;margin-bottom:14px">
-  <form method="GET" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-    <select name="status" style="width:auto;padding:8px 32px 8px 10px;font-size:0.88rem;border-radius:6px;flex:1;min-width:150px">
-      <option value="">All statuses</option>
-      {% for s in statuses %}
-      <option value="{{ s.value }}" {% if status_filter == s.value %}selected{% endif %}>{{ s.value|capitalize }}</option>
-      {% endfor %}
-    </select>
-    <button type="submit" class="btn btn-sm">Filter</button>
-    {% if status_filter %}<a href="/admin/records" style="font-size:0.85rem;color:var(--accent)">Clear</a>{% endif %}
-  </form>
+<div class="card" style="padding:12px 14px;margin-bottom:10px">
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <input type="search" id="records-search" placeholder="Search member, category, or description…"
+           style="flex:1;min-width:200px">
+    <form method="GET" style="display:flex;gap:8px;align-items:center">
+      <select name="status" style="width:auto;padding:8px 32px 8px 10px;font-size:0.88rem;border-radius:6px">
+        <option value="">All statuses</option>
+        {% for s in statuses %}
+        <option value="{{ s.value }}" {% if status_filter == s.value %}selected{% endif %}>{{ s.value|capitalize }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-sm">Filter</button>
+      {% if status_filter %}<a href="/admin/records" style="font-size:0.85rem;color:var(--accent)">Clear</a>{% endif %}
+    </form>
+  </div>
 </div>
 
 {% if records %}
 
 <!-- Mobile: cards -->
-<div class="mobile-only">
+<div class="mobile-only" id="records-cards">
   {% for r in records %}
-  <div class="record-card">
+  <div class="record-card" data-search="{{ r.user.display_name|lower }} {{ r.category.name|lower }} {{ (r.description or '')|lower }} {{ r.status.value }}">
     <div class="record-card-top">
       <div>
         <div class="record-card-meta">{{ r.user.display_name }} · {{ r.date.strftime('%b %d, %Y') }}</div>
@@ -62,14 +67,14 @@
     <thead>
       <tr><th>Member</th><th>Date</th><th>Category</th><th>Hrs</th><th>Description</th><th>Status</th><th></th></tr>
     </thead>
-    <tbody>
+    <tbody id="records-body">
       {% for r in records %}
-      <tr>
+      <tr data-search="{{ r.user.display_name|lower }} {{ r.category.name|lower }} {{ (r.description or '')|lower }} {{ r.status.value }}">
         <td style="font-weight:600">{{ r.user.display_name }}</td>
-        <td style="color:var(--muted)">{{ r.date.strftime('%b %d, %Y') }}</td>
+        <td style="white-space:nowrap">{{ r.date.strftime('%b %d, %Y') }}</td>
         <td>{{ r.category.name }}</td>
         <td style="font-weight:600">{{ '%.1f'|format(r.hours|float) }}</td>
-        <td style="color:var(--muted);font-size:0.85rem">{{ r.description or '—' }}</td>
+        <td style="font-size:0.85rem">{{ r.description or '—' }}</td>
         <td><span class="badge badge-{{ r.status.value }}">{{ r.status.value }}</span></td>
         <td style="white-space:nowrap">
           <a href="/admin/records/{{ r.id }}/history" class="btn btn-grey btn-sm">History</a>
@@ -87,4 +92,7 @@
 <div class="empty"><div class="empty-icon">📋</div><p>No records found.</p></div>
 {% endif %}
 
+{% endblock %}
+{% block scripts %}
+<script>tableFilter('records-search', 'records-body', 'records-cards');</script>
 {% endblock %}

@@ -35,3 +35,21 @@ def close_db(e=None) -> None:
     db = g.pop('db', None)
     if db is not None:
         db.close()
+
+
+def run_migrations() -> None:
+    """Add columns that may not exist in an older database."""
+    new_columns = [
+        ('users', 'notify_approval', "TEXT NOT NULL DEFAULT 'off'"),
+        ('users', 'notify_pending',  "TEXT NOT NULL DEFAULT 'off'"),
+        ('users', 'last_weekly_sent', 'DATETIME'),
+    ]
+    with _engine.connect() as conn:
+        for table, col, col_def in new_columns:
+            existing = [r[1] for r in conn.execute(
+                __import__('sqlalchemy').text(f'PRAGMA table_info({table})')
+            )]
+            if col not in existing:
+                conn.execute(__import__('sqlalchemy').text(
+                    f'ALTER TABLE {table} ADD COLUMN {col} {col_def}'
+                ))

@@ -71,6 +71,12 @@ class D4HHours(Base):
     d4h_member = relationship('D4HMember', back_populates='d4h_hours')
 
 
+class NotifyPref(str, enum.Enum):
+    off = 'off'
+    realtime = 'realtime'
+    weekly = 'weekly'
+
+
 class User(Base):
     __tablename__ = 'users'
 
@@ -82,8 +88,13 @@ class User(Base):
     role = Column(SQLEnum(UserRole, native_enum=False), nullable=False, default=UserRole.member)
     d4h_member_id = Column(Integer, ForeignKey('d4h_members.id'), nullable=True, index=True)
     is_active = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
     last_login_at = Column(DateTime, nullable=True)
+    notify_approval = Column(SQLEnum(NotifyPref, native_enum=False), nullable=False,
+                             default=NotifyPref.off)
+    notify_pending = Column(SQLEnum(NotifyPref, native_enum=False), nullable=False,
+                            default=NotifyPref.off)
+    last_weekly_sent = Column(DateTime, nullable=True)
 
     records = relationship('HoursRecord', back_populates='user',
                            foreign_keys='HoursRecord.user_id')
