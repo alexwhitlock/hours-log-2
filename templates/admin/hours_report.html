@@ -79,7 +79,7 @@
         <th data-col="7"><div class="th-inner"><span class="th-label">Other<small>Hours Log</small></span><span class="th-arrow">▲</span></div></th>
         <th data-col="8" class="col-group tax-credit"><div class="th-inner"><span class="th-label">Tax Credit</span><span class="th-arrow">▲</span></div></th>
         <th data-col="9"><div class="th-inner"><span class="th-label">Total</span><span class="th-arrow">▲</span></div></th>
-        <th>Login</th>
+        <th data-col="10"><div class="th-inner"><span class="th-label">Login</span><span class="th-arrow">▲</span></div></th>
       </tr>
     </thead>
     <tbody id="report-body">
@@ -94,7 +94,7 @@
       {% set ns.tc = ns.tc + row.tax_credit %}
       {% set ns.tot = ns.tot + row.total %}
       <tr {% if not row.has_login %}class="no-login"{% endif %}
-          data-vals="{{ row.member.name }}|{{ row.member.ref }}|{{ row.p_d4h }}|{{ row.p_tool }}|{{ row.s_d4h }}|{{ row.s_tool }}|{{ row.o_d4h }}|{{ row.o_tool }}|{{ row.tax_credit }}|{{ row.total }}">
+          data-vals="{{ row.member.name }}|{{ row.member.ref }}|{{ row.p_d4h }}|{{ row.p_tool }}|{{ row.s_d4h }}|{{ row.s_tool }}|{{ row.o_d4h }}|{{ row.o_tool }}|{{ row.tax_credit }}|{{ row.total }}|{{ 1 if row.has_login else 0 }}">
         <td style="font-weight:600">{{ row.member.name }}</td>
         <td>{{ row.member.ref }}</td>
         <td class="col-group">{{ '%.1f'|format(row.p_d4h) }}</td>
