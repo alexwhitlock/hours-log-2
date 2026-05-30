@@ -46,21 +46,26 @@
 <!-- Mobile: cards -->
 <div class="mobile-only" id="cats-cards">
   {% for cat in categories %}
-  <div class="record-card" data-search="{{ cat.name|lower }} {{ cat.hour_type.value }}" {% if not cat.is_active %}style="opacity:.5"{% endif %}>
+  <div class="record-card" data-search="{{ cat.name|lower }} {{ cat.hour_type.value }}">
     <div class="record-card-top">
       <div>
-        <div class="record-card-cat">{{ cat.name }}</div>
-        <div class="record-card-meta" style="margin-top:3px">{{ 'Active' if cat.is_active else 'Inactive' }}</div>
+        <div class="record-card-cat">
+          {{ cat.name }}
+          {% if not cat.is_active %}<span class="badge badge-draft" style="margin-left:6px;font-weight:400">Inactive</span>{% endif %}
+        </div>
       </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-        <span class="badge ht-{{ cat.hour_type.value }}">{{ cat.hour_type.value|capitalize }}</span>
-        {% if cat.is_active %}<span class="badge badge-approved">Active</span>{% else %}<span class="badge badge-draft">Inactive</span>{% endif %}
-      </div>
+      <span class="badge ht-{{ cat.hour_type.value }}">{{ cat.hour_type.value|capitalize }}</span>
     </div>
     <div class="record-card-actions">
       <form method="POST" action="/admin/categories/{{ cat.id }}/toggle">
         <button type="submit" class="btn btn-grey btn-sm">{{ 'Deactivate' if cat.is_active else 'Activate' }}</button>
       </form>
+      {% if not cat.is_active %}
+      <form method="POST" action="/admin/categories/{{ cat.id }}/delete"
+            onsubmit="return confirm('Delete category {{ cat.name }}? This cannot be undone.')">
+        <button type="submit" class="btn btn-red btn-sm">Delete</button>
+      </form>
+      {% endif %}
     </div>
   </div>
   {% endfor %}
@@ -72,14 +77,23 @@
     <thead><tr><th data-col="0">Name</th><th data-col="1">Hour Type</th><th data-col="2">Status</th><th></th></tr></thead>
     <tbody id="cats-body">
       {% for cat in categories %}
-      <tr data-search="{{ cat.name|lower }} {{ cat.hour_type.value }}" {% if not cat.is_active %}style="opacity:.5"{% endif %}>
-        <td style="font-weight:600">{{ cat.name }}</td>
+      <tr data-search="{{ cat.name|lower }} {{ cat.hour_type.value }}">
+        <td style="font-weight:600">
+          {{ cat.name }}
+          {% if not cat.is_active %}<span class="badge badge-draft" style="margin-left:6px;font-weight:400">Inactive</span>{% endif %}
+        </td>
         <td><span class="badge ht-{{ cat.hour_type.value }}">{{ cat.hour_type.value|capitalize }}</span></td>
         <td>{% if cat.is_active %}<span class="badge badge-approved">Active</span>{% else %}<span class="badge badge-draft">Inactive</span>{% endif %}</td>
-        <td>
+        <td style="white-space:nowrap">
           <form method="POST" action="/admin/categories/{{ cat.id }}/toggle" style="display:inline">
             <button type="submit" class="btn btn-grey btn-sm">{{ 'Deactivate' if cat.is_active else 'Activate' }}</button>
           </form>
+          {% if not cat.is_active %}
+          <form method="POST" action="/admin/categories/{{ cat.id }}/delete" style="display:inline"
+                onsubmit="return confirm('Delete category {{ cat.name }}? This cannot be undone.')">
+            <button type="submit" class="btn btn-red btn-sm">Delete</button>
+          </form>
+          {% endif %}
         </td>
       </tr>
       {% endfor %}

@@ -187,6 +187,26 @@ def toggle_category(cat_id):
     return redirect(url_for('admin.categories'))
 
 
+@admin_bp.route('/admin/categories/<int:cat_id>/delete', methods=['POST'])
+@require_role('admin')
+def delete_category(cat_id):
+    db = get_db()
+    cat = db.get(Category, cat_id)
+    if not cat:
+        abort(404)
+    if cat.is_active:
+        flash('Deactivate the category before deleting.', 'error')
+        return redirect(url_for('admin.categories'))
+    in_use = db.query(HoursRecord).filter_by(category_id=cat_id).count()
+    if in_use:
+        flash(f'Cannot delete — {in_use} record(s) use this category.', 'error')
+        return redirect(url_for('admin.categories'))
+    db.delete(cat)
+    db.commit()
+    flash(f'Category "{cat.name}" deleted.')
+    return redirect(url_for('admin.categories'))
+
+
 # ── Users ─────────────────────────────────────────────────────────────────────
 
 @admin_bp.route('/admin/users')
