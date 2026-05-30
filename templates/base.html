@@ -118,6 +118,7 @@
 
     /* ── Page container ── */
     .container { max-width: 780px; margin: 0 auto; padding: 20px 14px 32px; }
+    .container.wide { max-width: 1200px; }
 
     /* ── Cards ── */
     .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; margin-bottom: 14px; }
@@ -237,7 +238,7 @@
 </nav>
 {% endif %}
 
-<div class="container">
+<div class="container {% block container_class %}{% endblock %}">
   {% with messages = get_flashed_messages(with_categories=True) %}
     {% if messages %}
     <ul class="flash-list">
