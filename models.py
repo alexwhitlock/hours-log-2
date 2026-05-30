@@ -131,6 +131,7 @@ class HoursRecord(Base):
     d4h_submitted_at = Column(DateTime, nullable=True)
     d4h_record_id = Column(String(128), nullable=True)
     auto_role_assignment_id = Column(Integer, ForeignKey('admin_role_assignments.id'), nullable=True, index=True)
+    d4h_needs_resync = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, nullable=False, default=datetime.now)
     updated_at = Column(DateTime, nullable=False, default=datetime.now,
                         onupdate=datetime.now)
@@ -186,3 +187,16 @@ class AdminRoleAssignment(Base):
 
     user = relationship('User')
     admin_role = relationship('AdminRole', back_populates='assignments')
+
+
+class D4HSubmissionEvent(Base):
+    __tablename__ = 'd4h_submission_events'
+    __table_args__ = (UniqueConstraint('year', 'month', 'hour_type',
+                                       name='uq_submission_event'),)
+
+    id            = Column(Integer, primary_key=True)
+    d4h_event_id  = Column(Integer, nullable=False, unique=True)
+    year          = Column(Integer, nullable=False)
+    month         = Column(Integer, nullable=False)
+    hour_type     = Column(SQLEnum(HourType, native_enum=False), nullable=False)
+    created_at    = Column(DateTime, nullable=False, default=datetime.now)

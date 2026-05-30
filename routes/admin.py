@@ -29,6 +29,8 @@ def index():
         total_d4h_members=db.query(D4HMember).filter(
             D4HMember.status != 'Retired').count(),
         last_sync=last_sync,
+        d4h_needs_resync_count=db.query(HoursRecord).filter_by(
+            d4h_needs_resync=True).count(),
     )
 
 
@@ -54,6 +56,12 @@ def delete_record(record_id):
     record = db.get(HoursRecord, record_id)
     if not record:
         abort(404)
+    if record.status == RecordStatus.submitted:
+        try:
+            from d4h_submit import handle_submitted_record_delete
+            handle_submitted_record_delete(db, current_app.config['D4H_CONFIG'], record)
+        except Exception as e:
+            logger.warning(f'D4H retract on delete failed: {e}')
     from models import RecordHistory
     db.query(RecordHistory).filter_by(record_id=record_id).delete()
     db.delete(record)
@@ -70,6 +78,57 @@ def record_history(record_id):
     if not record:
         abort(404)
     return render_template('admin/history.html', record=record)
+
+
+# ── D4H Submit ───────────────────────────────────────────────────────────────
+
+_submit_status: dict = {'running': False, 'result': None, 'error': None,
+                        'message': '', 'percent': 0}
+_submit_lock = __import__('threading').Lock()
+
+
+@admin_bp.route('/admin/d4h-submit', methods=['POST'])
+@require_role('admin')
+def d4h_submit():
+    global _submit_status
+    with _submit_lock:
+        if _submit_status.get('running'):
+            flash('Submission already running.')
+            return redirect(url_for('admin.index'))
+        _submit_status = {'running': True, 'result': None, 'error': None,
+                          'message': 'Starting…', 'percent': 0}
+
+    import threading
+    config = current_app.config['D4H_CONFIG']
+
+    def _run():
+        from db import _Session
+        from d4h_submit import run_submission
+        db = _Session()
+        try:
+            result = run_submission(db, config)
+            _submit_status.update({
+                'running': False, 'result': result, 'error': None,
+                'message': 'Complete', 'percent': 100,
+            })
+        except Exception as e:
+            logger.exception('Manual D4H submit failed')
+            _submit_status.update({
+                'running': False, 'result': None, 'error': str(e),
+                'message': str(e), 'percent': 0,
+            })
+        finally:
+            db.close()
+
+    threading.Thread(target=_run, daemon=True, name='d4h-submit').start()
+    return redirect(url_for('admin.index'))
+
+
+@admin_bp.route('/admin/d4h-submit/status')
+@require_role('admin')
+def d4h_submit_status():
+    from flask import jsonify
+    return jsonify(_submit_status)
 
 
 # ── Categories ────────────────────────────────────────────────────────────────
@@ -378,6 +437,23 @@ def edit_record(record_id):
             }},
         ))
         db.commit()
+
+        if record.status == RecordStatus.submitted:
+            try:
+                from d4h_submit import push_group_immediately
+                ok = push_group_immediately(
+                    db, current_app.config['D4H_CONFIG'],
+                    record.user_id,
+                    record.category.hour_type.value if record.category else None,
+                    record.date.year, record.date.month,
+                )
+                if not ok:
+                    flash('Record updated — D4H sync failed, will retry automatically.',
+                          'warning')
+                    return redirect(url_for('admin.records'))
+            except Exception as e:
+                logger.warning(f'Immediate D4H push failed: {e}')
+
         flash('Record updated.')
         return redirect(url_for('admin.records'))
 

@@ -115,7 +115,8 @@ def _build_activity_tag_cache(config: dict, progress=None) -> dict:
 
 # ── Member attendance ─────────────────────────────────────────────────────────
 
-def _fetch_member_attendance(config: dict, member_id: int, tag_cache: dict) -> list:
+def _fetch_member_attendance(config: dict, member_id: int, tag_cache: dict,
+                             submission_event_ids: set = None) -> list:
     client = _make_client(config)
     records = []
     page = 0
@@ -151,6 +152,8 @@ def _fetch_member_attendance(config: dict, member_id: int, tag_cache: dict) -> l
                 activity = rec.get('activity') or {}
                 activity_id = activity.get('id')
                 if not activity_id or activity_id not in tag_cache:
+                    continue
+                if submission_event_ids and activity_id in submission_event_ids:
                     continue
                 records.append({
                     'attendance_id': rec['id'],
@@ -252,12 +255,20 @@ def sync_members(config: dict, db, progress=None) -> dict:
 # ── Hours sync ────────────────────────────────────────────────────────────────
 
 def sync_hours(config: dict, db, changed_member_ids=None, progress=None) -> dict:
-    from models import D4HMember, D4HHours, HourType
+    from models import D4HMember, D4HHours, HourType, D4HSubmissionEvent
 
     tag_cache = _build_activity_tag_cache(config, progress=progress)
     if not tag_cache:
         logger.warning('D4H sync: empty activity cache')
         return {'upserted': 0, 'skipped': 0, 'members_synced': 0}
+
+    # Load submission event IDs so we can skip them during attendance processing
+    submission_event_ids = {
+        row.d4h_event_id
+        for row in db.query(D4HSubmissionEvent).all()
+    }
+    if submission_event_ids:
+        logger.info(f'D4H sync: skipping {len(submission_event_ids)} submission event IDs')
 
     all_members = db.query(D4HMember).filter(D4HMember.status != 'Retired').all()
     if changed_member_ids is not None:
@@ -279,7 +290,8 @@ def sync_hours(config: dict, db, changed_member_ids=None, progress=None) -> dict
     attendance_by_member = {}
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
         futures = {
-            ex.submit(_fetch_member_attendance, config, m.id, tag_cache): m.id
+            ex.submit(_fetch_member_attendance, config, m.id, tag_cache,
+                      submission_event_ids): m.id
             for m in to_sync
         }
         done = 0

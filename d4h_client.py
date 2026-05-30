@@ -285,6 +285,61 @@ class D4HClient:
             logger.debug(f"D4H: could not fetch activity {activity_id} info: {e}")
         return {}
 
+    # ------------------------------------------------------------------
+    # Hours Log submission
+    # ------------------------------------------------------------------
+
+    # Maps hour_type value → D4H tag ID
+    HOUR_TYPE_TAG = {'primary': 7177, 'secondary': 7178, 'other': 7179}
+
+    def create_submission_event(self, year: int, month: int, hour_type: str) -> dict:
+        """Create a monthly Hours Log placeholder event and tag it."""
+        import calendar
+        last_day = calendar.monthrange(year, month)[1]
+        label = hour_type.capitalize()
+        event = self._post(f'/team/{self.team_id}/events', {
+            'referenceDescription': f'Hours Log: {label} - {year:04d}-{month:02d}',
+            'startsAt': f'{year:04d}-{month:02d}-01T00:00:00Z',
+            'endsAt':   f'{year:04d}-{month:02d}-{last_day:02d}T23:59:59Z',
+        })
+        tag_id = self.HOUR_TYPE_TAG.get(hour_type)
+        if tag_id:
+            try:
+                self._post(f'/team/{self.team_id}/events/{event["id"]}/tags',
+                           {'tagIds': [tag_id]})
+            except Exception as e:
+                logger.warning(f'D4H: could not set tag on event {event["id"]}: {e}')
+        logger.info(f'D4H: created submission event {event["id"]} '
+                    f'{year:04d}-{month:02d} {hour_type}')
+        return event
+
+    def create_submission_attendance(self, event_id: int, member_d4h_id: int,
+                                     total_hours: float, year: int, month: int) -> dict:
+        from datetime import datetime, timedelta
+        start_dt = datetime(year, month, 1)
+        end_dt   = start_dt + timedelta(hours=total_hours)
+        return self._post(f'/team/{self.team_id}/attendance', {
+            'activityId': event_id,
+            'memberId':   member_d4h_id,
+            'startsAt':   start_dt.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'endsAt':     end_dt.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'status':     'ATTENDING',
+        })
+
+    def patch_submission_attendance(self, attendance_id: int,
+                                    total_hours: float, year: int, month: int) -> dict:
+        from datetime import datetime, timedelta
+        start_dt = datetime(year, month, 1)
+        end_dt   = start_dt + timedelta(hours=total_hours)
+        return self._patch(f'/team/{self.team_id}/attendance/{attendance_id}', {
+            'startsAt': start_dt.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'endsAt':   end_dt.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'status':   'ATTENDING',
+        })
+
+    def delete_submission_attendance(self, attendance_id: int) -> None:
+        self._delete(f'/team/{self.team_id}/attendance/{attendance_id}')
+
     def get_activity_attendance(self, activity_id: str) -> list[D4HMember]:
         """Return members attending an activity (status == ATTENDING)."""
         raw = self._paginate(

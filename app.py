@@ -143,17 +143,39 @@ def _start_weekly_scheduler(app: 'Flask') -> None:
 
     def _run():
         import time
+        from datetime import datetime as _dt
+        last_submission_date = None
+
         while True:
             time.sleep(3600)  # check every hour
             try:
                 _send_summaries(app)
                 _run_role_hours()
+                # D4H submission at 3am
+                now = _dt.now()
+                if now.hour == 3 and last_submission_date != now.date():
+                    with app.app_context():
+                        _run_d4h_submission(app.config['D4H_CONFIG'])
+                    last_submission_date = now.date()
             except Exception:
                 logger.exception('Scheduler error')
 
     t = threading.Thread(target=_run, daemon=True, name='summary-scheduler')
     t.start()
     logger.info('Summary scheduler started.')
+
+
+def _run_d4h_submission(config: dict) -> None:
+    from db import _Session
+    from d4h_submit import run_submission
+    db = _Session()
+    try:
+        result = run_submission(db, config)
+        logger.info(f'D4H nightly submission complete: {result}')
+    except Exception:
+        logger.exception('D4H nightly submission error')
+    finally:
+        db.close()
 
 
 def _run_role_hours() -> None:

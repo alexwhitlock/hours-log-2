@@ -76,7 +76,10 @@
         <td>{{ r.category.name }}</td>
         <td style="font-weight:600">{{ '%.1f'|format(r.hours|float) }}</td>
         <td style="font-size:0.85rem">{{ r.description or '—' }}</td>
-        <td><span class="badge badge-{{ r.status.value }}">{{ r.status.value }}</span></td>
+        <td>
+          <span class="badge badge-{{ r.status.value }}">{{ r.status.value }}</span>
+          {% if r.d4h_needs_resync %}<span class="badge badge-pending" title="Pending re-sync to D4H">⚠ resync</span>{% endif %}
+        </td>
         <td style="white-space:nowrap">
           <a href="/admin/records/{{ r.id }}/edit" class="btn btn-outline btn-sm">Edit</a>
           <a href="/admin/records/{{ r.id }}/history" class="btn btn-grey btn-sm">History</a>
