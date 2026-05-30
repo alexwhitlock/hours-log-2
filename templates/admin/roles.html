@@ -17,10 +17,29 @@
   </a>
 </div>
 
-<p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px">
-  Roles generate a pre-approved hours record for each assigned member on the last day of every month.
-  Use <strong>Generate Now</strong> to create records for the current month immediately (e.g. for testing or catch-up).
-</p>
+<div class="card" style="margin-bottom:14px;font-size:0.85rem;line-height:1.6">
+  <div class="card-title">How this works</div>
+  <p style="margin-bottom:8px">
+    Each role has a monthly hours allotment. Members assigned to a role automatically receive
+    a pre-approved hours record on the <strong>last day of each month</strong> — they don't need
+    to log or submit anything.
+  </p>
+  <p style="margin-bottom:8px">
+    <strong>Auto-generation:</strong> The server checks once per hour. On the last day of the month
+    it creates one approved record per active assignment. Running twice does nothing — each
+    assignment can only have one record per calendar month.
+  </p>
+  <p style="margin-bottom:8px">
+    <strong>Deduplication:</strong> Every auto-generated record is tagged with the assignment
+    that created it. Before generating, the system checks whether a record already exists for
+    that assignment in that month. Manual records are never affected.
+  </p>
+  <p style="margin-bottom:0">
+    <strong>Generate Now</strong> backfills any <em>past</em> months (from the member's start date
+    up to last month) that are missing a record. It does not touch the current month —
+    that will be created automatically at month end. Safe to click multiple times.
+  </p>
+</div>
 
 <!-- Create new role -->
 <div class="card" style="margin-bottom:14px">

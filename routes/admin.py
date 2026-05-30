@@ -487,21 +487,17 @@ def generate_role_hours(role_id):
     generated = 0
     for a in assignments:
         role = a.admin_role
-        # Walk every month from start_date to today
+        # Walk every month from start_date up to (but not including) the current month
         cur_year, cur_month = a.start_date.year, a.start_date.month
-        while (cur_year, cur_month) <= (today.year, today.month):
+        while (cur_year, cur_month) < (today.year, today.month):
             existing = db.query(HoursRecord).filter(
                 HoursRecord.auto_role_assignment_id == a.id,
                 extract('year',  HoursRecord.date) == cur_year,
                 extract('month', HoursRecord.date) == cur_month,
             ).first()
             if not existing:
-                # Use last day of the month, except current month uses today
-                if (cur_year, cur_month) == (today.year, today.month):
-                    record_date = today
-                else:
-                    last_day = calendar.monthrange(cur_year, cur_month)[1]
-                    record_date = date(cur_year, cur_month, last_day)
+                last_day = calendar.monthrange(cur_year, cur_month)[1]
+                record_date = date(cur_year, cur_month, last_day)
 
                 # Only generate if within the assignment's active period
                 if a.end_date is None or a.end_date >= record_date:
@@ -525,5 +521,5 @@ def generate_role_hours(role_id):
                 cur_month += 1
 
     db.commit()
-    flash(f'Generated {generated} record{"s" if generated != 1 else ""} (backfill included).')
+    flash(f'Generated {generated} record{"s" if generated != 1 else ""} for past months.')
     return redirect(url_for('admin.roles'))
