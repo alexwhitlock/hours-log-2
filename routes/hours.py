@@ -76,22 +76,25 @@ def edit(record_id):
         id=record_id, user_id=session['user_id']).first()
     if not record:
         abort(404)
-    if record.status != RecordStatus.draft:
-        flash('Only draft records can be edited.')
+    if record.status not in (RecordStatus.draft, RecordStatus.pending):
+        flash('Only draft or pending records can be edited.')
         return redirect(url_for('hours.index'))
 
     categories = db.query(Category).filter_by(is_active=True).order_by(Category.name).all()
 
     if request.method == 'POST':
         action = request.form.get('action', 'draft')
+        was_pending = record.status == RecordStatus.pending
         before = {
             'date': str(record.date), 'hours': str(record.hours),
             'description': record.description, 'category_id': record.category_id,
+            'status': record.status.value,
         }
         record.category_id = int(request.form['category_id'])
         record.date = date.fromisoformat(request.form['date'])
         record.hours = float(request.form['hours'])
         record.description = request.form.get('description', '').strip() or None
+        # Editing always moves back to draft; user must re-submit
         record.status = RecordStatus.pending if action == 'submit' else RecordStatus.draft
         record.updated_at = datetime.now()
         db.add(RecordHistory(
@@ -101,10 +104,16 @@ def edit(record_id):
             changes={'before': before, 'after': {
                 'date': str(record.date), 'hours': str(record.hours),
                 'description': record.description, 'category_id': record.category_id,
+                'status': record.status.value,
             }},
         ))
         db.commit()
-        flash('Submitted for approval.' if action == 'submit' else 'Draft saved.')
+        if action == 'submit':
+            flash('Re-submitted for approval.')
+        elif was_pending:
+            flash('Record moved back to draft.')
+        else:
+            flash('Draft saved.')
         return redirect(url_for('hours.index'))
 
     return render_template('hours/form.html', record=record, categories=categories,
