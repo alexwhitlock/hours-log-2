@@ -30,7 +30,7 @@
 </div>
 
 <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px">
-  D4H = synced attendance hours &nbsp;·&nbsp; Tool = approved/submitted records from this app.
+  D4H = synced attendance hours &nbsp;·&nbsp; Hours Log = approved/submitted records from this app.
   <strong>Tax credit</strong> = Primary + Secondary (all sources).
   Greyed members have not logged in to this tool. Click column headers to sort.
 </p>
@@ -53,9 +53,9 @@
     </div>
     <div style="display:flex;gap:10px;margin-top:6px;font-size:0.78rem;color:var(--muted)">
       <span>P D4H: <strong>{{ '%.1f'|format(row.p_d4h) }}</strong></span>
-      <span>P Tool: <strong>{{ '%.1f'|format(row.p_tool) }}</strong></span>
+      <span>P Hours Log: <strong>{{ '%.1f'|format(row.p_tool) }}</strong></span>
       <span>S D4H: <strong>{{ '%.1f'|format(row.s_d4h) }}</strong></span>
-      <span>S Tool: <strong>{{ '%.1f'|format(row.s_tool) }}</strong></span>
+      <span>S Hours Log: <strong>{{ '%.1f'|format(row.s_tool) }}</strong></span>
     </div>
   </div>
   {% endfor %}
@@ -69,10 +69,10 @@
         <th data-col="0">Member</th>
         <th data-col="1">Ref</th>
         <th data-col="2" class="col-group">Primary<small>D4H</small></th>
-        <th data-col="3">Primary<small>Tool</small></th>
+        <th data-col="3">Primary<small>Hours Log</small></th>
         <th data-col="4" class="col-group">Secondary<small>D4H</small></th>
-        <th data-col="5">Secondary<small>Tool</small></th>
-        <th data-col="6" class="col-group">Other<small>D4H + Tool</small></th>
+        <th data-col="5">Secondary<small>Hours Log</small></th>
+        <th data-col="6" class="col-group">Other<small>D4H + Hours Log</small></th>
         <th data-col="7" class="col-group tax-credit">Tax Credit</th>
         <th data-col="8">Total</th>
         <th>Login</th>
