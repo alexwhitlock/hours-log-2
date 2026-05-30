@@ -1,9 +1,9 @@
 services:
   hours_log:
-    image: hours-log:local
+    build: .
     container_name: hours_log
     ports:
-      - "5002:5000"
+      - "127.0.0.1:5005:5000"
     volumes:
       - ./config.json:/app/config.json:ro
       - ./data:/app/data

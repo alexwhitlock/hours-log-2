@@ -116,6 +116,11 @@ def create_app() -> Flask:
     def not_found(e):
         return render_template('error.html', code=404, message='Page not found.'), 404
 
+    @app.route('/health')
+    def health():
+        from flask import jsonify
+        return jsonify({'status': 'ok'})
+
     logger.info('hours-log ready.')
     return app
 
