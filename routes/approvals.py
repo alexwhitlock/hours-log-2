@@ -10,6 +10,26 @@ from models import Category, D4HHours, HoursRecord, RecordHistory, RecordStatus,
 approvals_bp = Blueprint('approvals', __name__)
 
 
+def _push_to_d4h(db, record) -> None:
+    """Immediately push the approved record's group to D4H. Failures are flagged for retry."""
+    if not record.user or not record.user.d4h_member_id:
+        return
+    if not record.category or record.category.hour_type.value not in ('primary', 'secondary', 'other'):
+        return
+    try:
+        from flask import current_app
+        from d4h_submit import push_group_immediately
+        push_group_immediately(
+            db, current_app.config['D4H_CONFIG'],
+            record.user_id,
+            record.category.hour_type.value,
+            record.date.year, record.date.month,
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f'D4H push on approval failed: {e}')
+
+
 def _check_tax_credit_milestone(db, user):
     """Send tax credit eligibility email if user just became eligible this year."""
     if not user or not user.notify_tax_credit:
@@ -86,6 +106,7 @@ def review(record_id):
                          **({'comment': comment} if comment else {})},
             ))
             db.commit()
+            _push_to_d4h(db, record)
             if record.user and record.user.notify_approval == NotifyPref.realtime:
                 from mail import notify_record_approved
                 notify_record_approved(record.user.email, record.user.display_name, record)
@@ -127,6 +148,7 @@ def approve(record_id):
     db.add(RecordHistory(
         record_id=record.id, action='approved', performed_by=session['user_id']))
     db.commit()
+    _push_to_d4h(db, record)
     if record.user and record.user.notify_approval == NotifyPref.realtime:
         from mail import notify_record_approved
         notify_record_approved(record.user.email, record.user.display_name, record)

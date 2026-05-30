@@ -485,21 +485,22 @@ def edit_record(record_id):
         ))
         db.commit()
 
-        if record.status == RecordStatus.submitted:
-            try:
-                from d4h_submit import push_group_immediately
-                ok = push_group_immediately(
-                    db, current_app.config['D4H_CONFIG'],
-                    record.user_id,
-                    record.category.hour_type.value if record.category else None,
-                    record.date.year, record.date.month,
-                )
-                if not ok:
-                    flash('Record updated — D4H sync failed, will retry automatically.',
-                          'warning')
-                    return redirect(url_for('admin.records'))
-            except Exception as e:
-                logger.warning(f'Immediate D4H push failed: {e}')
+        if record.status in (RecordStatus.submitted, RecordStatus.approved):
+            if record.category and record.category.hour_type.value in ('primary', 'secondary', 'other'):
+                try:
+                    from d4h_submit import push_group_immediately
+                    ok = push_group_immediately(
+                        db, current_app.config['D4H_CONFIG'],
+                        record.user_id,
+                        record.category.hour_type.value,
+                        record.date.year, record.date.month,
+                    )
+                    if not ok:
+                        flash('Record updated — D4H sync failed, will retry automatically.',
+                              'warning')
+                        return redirect(url_for('admin.records'))
+                except Exception as e:
+                    logger.warning(f'Immediate D4H push failed: {e}')
 
         flash('Record updated.')
         return redirect(url_for('admin.records'))
