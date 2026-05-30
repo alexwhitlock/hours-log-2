@@ -5,7 +5,6 @@
   @media (max-width: 640px) { .desktop-only { display: none !important; } }
   @media (min-width: 641px) { .mobile-only  { display: none !important; } }
   .tax-credit { color: var(--accent); font-weight: 700; }
-  .no-login { opacity: .55; }
   .th-inner { display: flex; align-items: flex-start; gap: 4px; }
   .th-label { flex: 1; }
   .th-arrow { font-size: 0.7em; line-height: 1.6; opacity: 0; flex-shrink: 0; }
@@ -43,11 +42,11 @@
 <!-- Mobile: cards -->
 <div class="mobile-only" id="report-cards">
   {% for row in rows %}
-  <div class="record-card {% if not row.has_login %}no-login{% endif %}" data-search="{{ row.member.name|lower }} {{ row.member.ref|lower }}">
+  <div class="record-card" data-search="{{ row.member.name|lower }} {{ row.member.ref|lower }}">
     <div class="record-card-top">
       <div>
         <div class="record-card-cat">{{ row.member.name }}</div>
-        <div class="record-card-meta">Ref {{ row.member.ref }}{% if not row.has_login %} · no login{% endif %}</div>
+        <div class="record-card-meta">Ref {{ row.member.ref }}</div>
       </div>
       <div style="text-align:right">
         <div class="tax-credit" style="font-size:1rem">{{ '%.1f'|format(row.tax_credit) }} <span style="font-size:0.7rem">TC</span></div>
@@ -79,7 +78,6 @@
         <th data-col="7"><div class="th-inner"><span class="th-label">Other<small>Hours Log</small></span><span class="th-arrow">▲</span></div></th>
         <th data-col="8" class="col-group tax-credit"><div class="th-inner"><span class="th-label">Tax Credit</span><span class="th-arrow">▲</span></div></th>
         <th data-col="9"><div class="th-inner"><span class="th-label">Total</span><span class="th-arrow">▲</span></div></th>
-        <th data-col="10"><div class="th-inner"><span class="th-label">Login</span><span class="th-arrow">▲</span></div></th>
       </tr>
     </thead>
     <tbody id="report-body">
@@ -93,8 +91,7 @@
       {% set ns.ot = ns.ot + row.o_tool %}
       {% set ns.tc = ns.tc + row.tax_credit %}
       {% set ns.tot = ns.tot + row.total %}
-      <tr {% if not row.has_login %}class="no-login"{% endif %}
-          data-vals="{{ row.member.name }}|{{ row.member.ref }}|{{ row.p_d4h }}|{{ row.p_tool }}|{{ row.s_d4h }}|{{ row.s_tool }}|{{ row.o_d4h }}|{{ row.o_tool }}|{{ row.tax_credit }}|{{ row.total }}|{{ 1 if row.has_login else 0 }}">
+      <tr data-vals="{{ row.member.name }}|{{ row.member.ref }}|{{ row.p_d4h }}|{{ row.p_tool }}|{{ row.s_d4h }}|{{ row.s_tool }}|{{ row.o_d4h }}|{{ row.o_tool }}|{{ row.tax_credit }}|{{ row.total }}">
         <td style="font-weight:600"><a href="/admin/members/{{ row.member.id }}?year={{ year }}" style="color:inherit;text-decoration:none;border-bottom:1px solid var(--border)">{{ row.member.name }}</a></td>
         <td>{{ row.member.ref }}</td>
         <td class="col-group">{{ '%.1f'|format(row.p_d4h) }}</td>
@@ -105,10 +102,6 @@
         <td>{{ '%.1f'|format(row.o_tool) }}</td>
         <td class="col-group tax-credit">{{ '%.1f'|format(row.tax_credit) }}</td>
         <td style="font-weight:600">{{ '%.1f'|format(row.total) }}</td>
-        <td>
-          {% if row.has_login %}<span class="badge badge-approved">Yes</span>
-          {% else %}<span class="badge badge-draft">No</span>{% endif %}
-        </td>
       </tr>
       {% endfor %}
     </tbody>
