@@ -111,6 +111,24 @@ def edit(record_id):
                            today=date.today().isoformat())
 
 
+@hours_bp.route('/hours/<int:record_id>/delete', methods=['POST'])
+@require_login
+def delete(record_id):
+    db = get_db()
+    record = db.query(HoursRecord).filter_by(
+        id=record_id, user_id=session['user_id']).first()
+    if not record:
+        abort(404)
+    if record.status not in (RecordStatus.draft, RecordStatus.pending):
+        flash('Only draft or pending records can be deleted.', 'error')
+        return redirect(url_for('hours.index'))
+    db.query(RecordHistory).filter_by(record_id=record_id).delete()
+    db.delete(record)
+    db.commit()
+    flash('Record deleted.')
+    return redirect(url_for('hours.index'))
+
+
 @hours_bp.route('/hours/<int:record_id>/history')
 @require_login
 def history(record_id):

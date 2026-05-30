@@ -35,6 +35,11 @@
     </div>
     <div class="record-card-actions">
       {% if r.status.value == 'draft' %}<a href="/hours/{{ r.id }}/edit" class="btn btn-outline btn-sm">Edit</a>{% endif %}
+      {% if r.status.value in ('draft', 'pending') %}
+      <form method="POST" action="/hours/{{ r.id }}/delete" onsubmit="return confirm('Delete this record?')">
+        <button type="submit" class="btn btn-red btn-sm">Delete</button>
+      </form>
+      {% endif %}
       <a href="/hours/{{ r.id }}/history" class="btn btn-grey btn-sm">History</a>
     </div>
   </div>
@@ -57,6 +62,11 @@
         <td><span class="badge badge-{{ r.status.value }}">{{ r.status.value }}</span></td>
         <td style="white-space:nowrap">
           {% if r.status.value == 'draft' %}<a href="/hours/{{ r.id }}/edit" class="btn btn-outline btn-sm">Edit</a>{% endif %}
+          {% if r.status.value in ('draft', 'pending') %}
+          <form method="POST" action="/hours/{{ r.id }}/delete" style="display:inline" onsubmit="return confirm('Delete this record?')">
+            <button type="submit" class="btn btn-red btn-sm">Delete</button>
+          </form>
+          {% endif %}
           <a href="/hours/{{ r.id }}/history" class="btn btn-grey btn-sm">History</a>
         </td>
       </tr>

@@ -109,6 +109,22 @@ def approve(record_id):
     return redirect(url_for('approvals.index'))
 
 
+@approvals_bp.route('/approvals/<int:record_id>/delete', methods=['POST'])
+@require_role('approver')
+def delete(record_id):
+    db = get_db()
+    record = db.query(HoursRecord).filter_by(
+        id=record_id, status=RecordStatus.pending).first()
+    if not record:
+        abort(404)
+    from models import RecordHistory
+    db.query(RecordHistory).filter_by(record_id=record_id).delete()
+    db.delete(record)
+    db.commit()
+    flash('Record deleted.')
+    return redirect(url_for('approvals.index'))
+
+
 @approvals_bp.route('/approvals/<int:record_id>/reject', methods=['POST'])
 @require_role('approver')
 def reject(record_id):
