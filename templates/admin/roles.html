@@ -26,8 +26,13 @@
   </p>
   <p style="margin-bottom:8px">
     <strong>Auto-generation:</strong> On the last day of each month the server automatically
-    creates one approved record per active assignment. Running twice does nothing — each
-    assignment can only have one record per calendar month.
+    creates one approved record per active assignment. Each assignment can only have one
+    record per calendar month — running twice does nothing.
+  </p>
+  <p style="margin-bottom:8px">
+    <strong>Pro-ration:</strong> If a member's start or end date falls mid-month, their hours
+    for that month are pro-rated based on how many days of the month they were active.
+    For example, a member starting on the 16th of a 30-day month receives 50% of the monthly allotment.
   </p>
   <p style="margin-bottom:8px">
     <strong>Deduplication:</strong> Every auto-generated record is tagged with the assignment
@@ -36,8 +41,9 @@
   </p>
   <p style="margin-bottom:0">
     <strong>Generate Now</strong> backfills any <em>past</em> months (from the member's start date
-    up to last month) that are missing a record. It does not touch the current month —
-    that will be created automatically at month end. Safe to click multiple times.
+    up to last month) that are missing a record, with pro-ration applied to partial months.
+    It does not touch the current month — that will be created automatically at month end.
+    Safe to click multiple times.
   </p>
 </div>
 

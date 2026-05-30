@@ -10,6 +10,22 @@ from datetime import date, datetime
 logger = logging.getLogger(__name__)
 
 
+def pro_rated_hours(monthly_hours, year: int, month: int,
+                    start_date: date, end_date: date | None) -> float:
+    """Return hours for a given month, pro-rated if start/end fall mid-month."""
+    days_in_month = calendar.monthrange(year, month)[1]
+    month_start = date(year, month, 1)
+    month_end   = date(year, month, days_in_month)
+    effective_start = max(start_date, month_start)
+    effective_end   = min(end_date if end_date else month_end, month_end)
+    days_active = (effective_end - effective_start).days + 1
+    if days_active <= 0:
+        return 0.0
+    if days_active == days_in_month:
+        return float(monthly_hours)
+    return round(float(monthly_hours) * days_active / days_in_month, 2)
+
+
 def is_last_day_of_month(d: date = None) -> bool:
     d = d or date.today()
     return d.day == calendar.monthrange(d.year, d.month)[1]
@@ -44,11 +60,13 @@ def generate_monthly_role_hours(db) -> int:
             continue
 
         role = assignment.admin_role
+        hours = pro_rated_hours(role.monthly_hours, today.year, today.month,
+                                assignment.start_date, assignment.end_date)
         record = HoursRecord(
             user_id=assignment.user_id,
             category_id=role.category_id,
             date=today,
-            hours=role.monthly_hours,
+            hours=hours,
             description=f'Auto: {role.name}',
             status=RecordStatus.approved,
             approved_at=datetime.now(),

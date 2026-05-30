@@ -501,11 +501,14 @@ def generate_role_hours(role_id):
 
                 # Only generate if within the assignment's active period
                 if a.end_date is None or a.end_date >= record_date:
+                    from role_hours import pro_rated_hours
+                    hours = pro_rated_hours(role.monthly_hours, cur_year, cur_month,
+                                           a.start_date, a.end_date)
                     db.add(HoursRecord(
                         user_id=a.user_id,
                         category_id=role.category_id,
                         date=record_date,
-                        hours=role.monthly_hours,
+                        hours=hours,
                         description=f'Auto: {role.name}',
                         status=RecordStatus.approved,
                         approved_at=dt.now(),
