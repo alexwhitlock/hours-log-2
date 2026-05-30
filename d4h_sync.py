@@ -117,6 +117,34 @@ def _build_activity_tag_cache(config: dict, progress=None) -> dict:
 
 # ── Member attendance ─────────────────────────────────────────────────────────
 
+_untagged_cache: dict = {}  # activity_id → {'approved': bool, 'published': bool, 'name': str} or False
+
+
+def _check_untagged_activity(client, activity_id: int, resource_type: str) -> dict | None:
+    """Fetch an untagged activity and return its metadata if approved+published, else None."""
+    if activity_id in _untagged_cache:
+        return _untagged_cache[activity_id]
+    type_path = {'event': 'events', 'exercise': 'exercises', 'incident': 'incidents'}.get(resource_type)
+    if not type_path:
+        _untagged_cache[activity_id] = None
+        return None
+    try:
+        data = client._get(f'/team/{client.team_id}/{type_path}/{activity_id}')
+        approved  = data.get('approved', False)
+        published = data.get('published', True)  # default True if field absent
+        if not approved or not published:
+            _untagged_cache[activity_id] = None
+            return None
+        result = {
+            'name': data.get('referenceDescription') or data.get('reference') or str(activity_id),
+        }
+        _untagged_cache[activity_id] = result
+        return result
+    except Exception:
+        _untagged_cache[activity_id] = None
+        return None
+
+
 def _fetch_member_attendance(config: dict, member_id: int, tag_cache: dict,
                              submission_event_ids: set = None) -> list:
     client = _make_client(config)
@@ -158,13 +186,21 @@ def _fetch_member_attendance(config: dict, member_id: int, tag_cache: dict,
                 if submission_event_ids and activity_id in submission_event_ids:
                     continue
                 cached = tag_cache.get(activity_id)
+                if not cached:
+                    act_type = activity.get('resourceType', '').lower().rstrip('s')
+                    untagged = _check_untagged_activity(client, activity_id, act_type)
+                    if not untagged:
+                        continue
+                    act_name = untagged['name']
+                else:
+                    act_type = activity.get('resourceType', '').lower().rstrip('s')
+                    act_name = cached['name']
                 records.append({
                     'attendance_id': rec['id'],
                     'activity_id': activity_id,
-                    'activity_type': activity.get('resourceType', '').lower().rstrip('s'),
+                    'activity_type': act_type,
                     'hour_type': cached['hour_type'] if cached else 'other',
-                    'activity_name': cached['name'] if cached else (
-                        activity.get('referenceDescription') or str(activity_id)),
+                    'activity_name': act_name,
                     'date': starts,
                     'hours': round((rec.get('duration') or 0) / 60, 2),
                 })
@@ -381,6 +417,7 @@ def sync_hours(config: dict, db, changed_member_ids=None, progress=None) -> dict
 
 
 def sync_all(config: dict, db, progress=None) -> dict:
+    _untagged_cache.clear()
     def _p(msg, pct):
         if progress:
             progress('members', msg, pct)
