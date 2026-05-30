@@ -437,7 +437,7 @@ def hours_report():
 
         rows.append({
             'member': m,
-            'has_login': m.user is not None and m.user.is_active,
+            'has_login': m.user is not None and m.user.google_sub is not None,
             'p_d4h': p_d4h, 'p_tool': p_tool,
             's_d4h': s_d4h, 's_tool': s_tool,
             'o_d4h': o_d4h, 'o_tool': o_tool,
