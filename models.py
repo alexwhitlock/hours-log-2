@@ -2,7 +2,8 @@ import enum
 from datetime import datetime
 
 from sqlalchemy import (Boolean, Column, Date, DateTime, Enum as SQLEnum,
-                        ForeignKey, Integer, JSON, Numeric, String, Text)
+                        ForeignKey, Integer, JSON, Numeric, String, Text,
+                        UniqueConstraint)
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 
@@ -129,9 +130,10 @@ class HoursRecord(Base):
     d4h_submitted_by = Column(Integer, ForeignKey('users.id'), nullable=True)
     d4h_submitted_at = Column(DateTime, nullable=True)
     d4h_record_id = Column(String(128), nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow,
-                        onupdate=datetime.utcnow)
+    auto_role_assignment_id = Column(Integer, ForeignKey('admin_role_assignments.id'), nullable=True, index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now,
+                        onupdate=datetime.now)
 
     user = relationship('User', back_populates='records', foreign_keys=[user_id])
     category = relationship('Category')
@@ -153,3 +155,34 @@ class RecordHistory(Base):
 
     record = relationship('HoursRecord', back_populates='history')
     actor = relationship('User', foreign_keys=[performed_by])
+
+
+class AdminRole(Base):
+    __tablename__ = 'admin_roles'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(256), nullable=False)
+    monthly_hours = Column(Numeric(5, 2), nullable=False)
+    category_id = Column(Integer, ForeignKey('categories.id'), nullable=False)
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+
+    category = relationship('Category')
+    assignments = relationship('AdminRoleAssignment', back_populates='admin_role',
+                               cascade='all, delete-orphan')
+
+
+class AdminRoleAssignment(Base):
+    __tablename__ = 'admin_role_assignments'
+    __table_args__ = (UniqueConstraint('user_id', 'admin_role_id', name='uq_user_role'),)
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    admin_role_id = Column(Integer, ForeignKey('admin_roles.id'), nullable=False, index=True)
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+
+    user = relationship('User')
+    admin_role = relationship('AdminRole', back_populates='assignments')

@@ -43,6 +43,7 @@ def run_migrations() -> None:
         ('users', 'notify_approval', "TEXT NOT NULL DEFAULT 'off'"),
         ('users', 'notify_pending',  "TEXT NOT NULL DEFAULT 'off'"),
         ('users', 'last_weekly_sent', 'DATETIME'),
+        ('hours_records', 'auto_role_assignment_id', 'INTEGER REFERENCES admin_role_assignments(id)'),
     ]
     with _engine.connect() as conn:
         for table, col, col_def in new_columns:

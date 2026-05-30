@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+{% block title %}Roles & Auto-Hours{% endblock %}
+{% block head %}
+<style>
+  @media (max-width: 640px) { .desktop-only { display: none !important; } }
+  @media (min-width: 641px) { .mobile-only  { display: none !important; } }
+</style>
+{% endblock %}
+{% block container_class %}wide{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Roles &amp; Auto-Hours</h1>
+  <a href="/admin" class="btn btn-outline btn-sm">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="vertical-align:-2px"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Admin
+  </a>
+</div>
+
+<p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px">
+  Roles generate a pre-approved hours record for each assigned member on the last day of every month.
+  Use <strong>Generate Now</strong> to create records for the current month immediately (e.g. for testing or catch-up).
+</p>
+
+<!-- Create new role -->
+<div class="card" style="margin-bottom:14px">
+  <div class="card-title">New Role</div>
+  <form method="POST" action="/admin/roles/new">
+    <div style="display:grid;grid-template-columns:2fr 1fr 2fr;gap:10px;align-items:flex-end;flex-wrap:wrap">
+      <div class="field" style="margin-bottom:0">
+        <label>Role Name</label>
+        <input type="text" name="name" required placeholder="e.g. Team Captain">
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label>Hrs / Month</label>
+        <input type="number" name="monthly_hours" required step="0.5" min="0.5" placeholder="e.g. 8">
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label>Category</label>
+        <select name="category_id" required>
+          {% for cat in categories %}
+          <option value="{{ cat.id }}">{{ cat.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="field" style="margin-top:10px;margin-bottom:10px">
+      <label>Description <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+      <input type="text" name="description" placeholder="Brief description of the role">
+    </div>
+    <button type="submit" class="btn">Create Role</button>
+  </form>
+</div>
+
+{% if roles %}
+{% for role in roles %}
+<div class="card" style="margin-bottom:14px{% if not role.is_active %};opacity:.6{% endif %}">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+    <div>
+      <div style="font-weight:700;font-size:1rem">{{ role.name }}</div>
+      <div style="font-size:0.82rem;color:var(--muted);margin-top:2px">
+        {{ role.monthly_hours }} hrs/month &nbsp;·&nbsp;
+        {{ role.category.name }} ({{ role.category.hour_type.value }})
+        {% if role.description %} &nbsp;·&nbsp; {{ role.description }}{% endif %}
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;flex-shrink:0">
+      <form method="POST" action="/admin/roles/{{ role.id }}/generate" style="display:inline">
+        <button type="submit" class="btn btn-outline btn-sm"
+                onclick="return confirm('Generate records for all assigned members this month?')">
+          Generate Now
+        </button>
+      </form>
+      <form method="POST" action="/admin/roles/{{ role.id }}/toggle" style="display:inline">
+        <button type="submit" class="btn btn-grey btn-sm">
+          {{ 'Deactivate' if role.is_active else 'Activate' }}
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Assignments -->
+  {% if role.assignments %}
+  <div class="table-wrap desktop-only" style="box-shadow:none;border-radius:0;margin:0 -16px 10px">
+    <table>
+      <thead>
+        <tr><th>Member</th><th>Email</th><th>Start</th><th>End</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for a in role.assignments %}
+        <tr>
+          <td style="font-weight:600">{{ a.user.display_name }}</td>
+          <td style="font-size:0.85rem">{{ a.user.email }}</td>
+          <td>{{ a.start_date }}</td>
+          <td>{{ a.end_date or 'Ongoing' }}</td>
+          <td>
+            <form method="POST" action="/admin/roles/assignments/{{ a.id }}/remove"
+                  onsubmit="return confirm('Remove {{ a.user.display_name }} from {{ role.name }}?')">
+              <button type="submit" class="btn btn-red btn-sm">Remove</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="mobile-only" style="margin-bottom:10px">
+    {% for a in role.assignments %}
+    <div class="record-card" style="margin-bottom:6px">
+      <div class="record-card-top">
+        <div>
+          <div class="record-card-cat">{{ a.user.display_name }}</div>
+          <div class="record-card-meta">{{ a.start_date }} → {{ a.end_date or 'Ongoing' }}</div>
+        </div>
+        <form method="POST" action="/admin/roles/assignments/{{ a.id }}/remove"
+              onsubmit="return confirm('Remove?')">
+          <button type="submit" class="btn btn-red btn-sm">Remove</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p style="font-size:0.85rem;color:var(--muted);margin-bottom:10px">No members assigned yet.</p>
+  {% endif %}
+
+  <!-- Assign a member -->
+  <form method="POST" action="/admin/roles/{{ role.id }}/assign"
+        style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+    <div class="field" style="flex:2;min-width:160px;margin-bottom:0">
+      <label>Add Member</label>
+      <select name="user_id" required>
+        <option value="">— select member —</option>
+        {% for u in users %}
+        {% if u.id not in role.assignments|map(attribute='user_id')|list %}
+        <option value="{{ u.id }}">{{ u.display_name }}</option>
+        {% endif %}
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field" style="flex:1;min-width:120px;margin-bottom:0">
+      <label>Start Date</label>
+      <input type="date" name="start_date" value="{{ today }}">
+    </div>
+    <div class="field" style="flex:1;min-width:120px;margin-bottom:0">
+      <label>End Date <span style="font-weight:400;color:var(--muted)">(opt.)</span></label>
+      <input type="date" name="end_date">
+    </div>
+    <button type="submit" class="btn btn-sm" style="align-self:flex-end">Assign</button>
+  </form>
+</div>
+{% endfor %}
+
+{% else %}
+<div class="empty">
+  <div class="empty-icon">⚙️</div>
+  <p>No roles yet. Create one above.</p>
+</div>
+{% endif %}
+
+{% endblock %}

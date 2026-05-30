@@ -8,8 +8,8 @@ from flask import (Blueprint, abort, current_app, flash, jsonify, redirect,
 
 from auth import require_role
 from db import get_db
-from models import (Category, D4HHours, D4HMember, HourType, HoursRecord,
-                    RecordStatus, User, UserRole)
+from models import (AdminRole, AdminRoleAssignment, Category, D4HHours, D4HMember,
+                    HourType, HoursRecord, RecordStatus, User, UserRole)
 
 logger = logging.getLogger(__name__)
 admin_bp = Blueprint('admin', __name__)
@@ -337,3 +337,175 @@ def member_detail(member_id):
                            summary=summary,
                            year=year,
                            years=years)
+
+
+# ── Admin Record Edit ─────────────────────────────────────────────────────────
+
+@admin_bp.route('/admin/records/<int:record_id>/edit', methods=['GET', 'POST'])
+@require_role('admin')
+def edit_record(record_id):
+    from datetime import datetime as dt
+    from models import RecordHistory
+    db = get_db()
+    record = db.get(HoursRecord, record_id)
+    if not record:
+        abort(404)
+    categories = db.query(Category).filter_by(is_active=True).order_by(Category.name).all()
+
+    if request.method == 'POST':
+        before = {
+            'date': str(record.date), 'hours': str(record.hours),
+            'description': record.description, 'category_id': record.category_id,
+            'status': record.status.value,
+        }
+        from flask import session as flask_session
+        record.category_id = int(request.form['category_id'])
+        record.date = date.fromisoformat(request.form['date'])
+        record.hours = float(request.form['hours'])
+        record.description = request.form.get('description', '').strip() or None
+        new_status = request.form.get('status')
+        if new_status and new_status in RecordStatus.__members__:
+            record.status = RecordStatus(new_status)
+        record.updated_at = dt.now()
+        db.add(RecordHistory(
+            record_id=record.id,
+            action='admin_edit',
+            performed_by=flask_session['user_id'],
+            changes={'before': before, 'after': {
+                'date': str(record.date), 'hours': str(record.hours),
+                'description': record.description, 'category_id': record.category_id,
+                'status': record.status.value,
+            }},
+        ))
+        db.commit()
+        flash('Record updated.')
+        return redirect(url_for('admin.records'))
+
+    return render_template('admin/edit_record.html', record=record,
+                           categories=categories, statuses=RecordStatus)
+
+
+# ── Admin Roles ───────────────────────────────────────────────────────────────
+
+@admin_bp.route('/admin/roles')
+@require_role('admin')
+def roles():
+    db = get_db()
+    all_roles = db.query(AdminRole).order_by(AdminRole.name).all()
+    categories = db.query(Category).filter_by(is_active=True).order_by(Category.name).all()
+    users = db.query(User).filter_by(is_active=True).order_by(User.display_name).all()
+    return render_template('admin/roles.html', roles=all_roles,
+                           categories=categories, users=users,
+                           today=date.today().isoformat())
+
+
+@admin_bp.route('/admin/roles/new', methods=['POST'])
+@require_role('admin')
+def new_role():
+    db = get_db()
+    name = request.form.get('name', '').strip()
+    if not name:
+        flash('Name is required.', 'error')
+        return redirect(url_for('admin.roles'))
+    db.add(AdminRole(
+        name=name,
+        monthly_hours=float(request.form['monthly_hours']),
+        category_id=int(request.form['category_id']),
+        description=request.form.get('description', '').strip() or None,
+    ))
+    db.commit()
+    flash(f'Role "{name}" created.')
+    return redirect(url_for('admin.roles'))
+
+
+@admin_bp.route('/admin/roles/<int:role_id>/toggle', methods=['POST'])
+@require_role('admin')
+def toggle_role(role_id):
+    db = get_db()
+    role = db.get(AdminRole, role_id)
+    if not role:
+        abort(404)
+    role.is_active = not role.is_active
+    db.commit()
+    flash(f'Role {"activated" if role.is_active else "deactivated"}.')
+    return redirect(url_for('admin.roles'))
+
+
+@admin_bp.route('/admin/roles/<int:role_id>/assign', methods=['POST'])
+@require_role('admin')
+def assign_role(role_id):
+    db = get_db()
+    role = db.get(AdminRole, role_id)
+    if not role:
+        abort(404)
+    user_id = int(request.form['user_id'])
+    start = date.fromisoformat(request.form.get('start_date') or str(date.today()))
+    end_str = request.form.get('end_date', '').strip()
+    end = date.fromisoformat(end_str) if end_str else None
+    existing = db.query(AdminRoleAssignment).filter_by(
+        user_id=user_id, admin_role_id=role_id).first()
+    if existing:
+        flash('User already assigned to this role.')
+        return redirect(url_for('admin.roles'))
+    db.add(AdminRoleAssignment(
+        user_id=user_id, admin_role_id=role_id,
+        start_date=start, end_date=end,
+    ))
+    db.commit()
+    flash('User assigned.')
+    return redirect(url_for('admin.roles'))
+
+
+@admin_bp.route('/admin/roles/assignments/<int:assignment_id>/remove', methods=['POST'])
+@require_role('admin')
+def remove_assignment(assignment_id):
+    db = get_db()
+    a = db.get(AdminRoleAssignment, assignment_id)
+    if not a:
+        abort(404)
+    db.delete(a)
+    db.commit()
+    flash('Assignment removed.')
+    return redirect(url_for('admin.roles'))
+
+
+@admin_bp.route('/admin/roles/<int:role_id>/generate', methods=['POST'])
+@require_role('admin')
+def generate_role_hours(role_id):
+    """Manually trigger generation for a specific role (for testing / catch-up)."""
+    from role_hours import generate_monthly_role_hours
+    from unittest.mock import patch
+    import calendar
+    db = get_db()
+    # Allow manual trigger regardless of date
+    from models import HoursRecord, RecordStatus, AdminRoleAssignment
+    from datetime import datetime as dt
+    today = date.today()
+    assignments = [a for a in db.query(AdminRoleAssignment).filter_by(
+        admin_role_id=role_id).all()
+        if (a.end_date is None or a.end_date >= today) and a.start_date <= today]
+    from sqlalchemy import extract
+    generated = 0
+    for a in assignments:
+        existing = db.query(HoursRecord).filter(
+            HoursRecord.auto_role_assignment_id == a.id,
+            extract('year', HoursRecord.date) == today.year,
+            extract('month', HoursRecord.date) == today.month,
+        ).first()
+        if existing:
+            continue
+        role = a.admin_role
+        db.add(HoursRecord(
+            user_id=a.user_id,
+            category_id=role.category_id,
+            date=today,
+            hours=role.monthly_hours,
+            description=f'Auto: {role.name}',
+            status=RecordStatus.approved,
+            approved_at=dt.now(),
+            auto_role_assignment_id=a.id,
+        ))
+        generated += 1
+    db.commit()
+    flash(f'Generated {generated} record{"s" if generated != 1 else ""} for this month.')
+    return redirect(url_for('admin.roles'))

@@ -147,12 +147,25 @@ def _start_weekly_scheduler(app: 'Flask') -> None:
             time.sleep(3600)  # check every hour
             try:
                 _send_summaries(app)
+                _run_role_hours()
             except Exception:
-                logger.exception('Summary scheduler error')
+                logger.exception('Scheduler error')
 
     t = threading.Thread(target=_run, daemon=True, name='summary-scheduler')
     t.start()
     logger.info('Summary scheduler started.')
+
+
+def _run_role_hours() -> None:
+    from db import _Session
+    from role_hours import generate_monthly_role_hours
+    db = _Session()
+    try:
+        n = generate_monthly_role_hours(db)
+        if n:
+            logger.info(f'Role hours: auto-generated {n} records')
+    finally:
+        db.close()
 
 
 def _send_summaries(app: 'Flask') -> None:

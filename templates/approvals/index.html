@@ -33,13 +33,13 @@
       </div>
     </div>
     <div class="record-card-actions">
+      <a href="/approvals/{{ r.id }}/review" class="btn btn-outline btn-sm">Review &amp; Edit</a>
       <form method="POST" action="/approvals/{{ r.id }}/approve" style="flex:1">
         <button type="submit" class="btn btn-green btn-full">Approve</button>
       </form>
       <form method="POST" action="/approvals/{{ r.id }}/reject" style="flex:1" onsubmit="return confirm('Reject this record?')">
         <button type="submit" class="btn btn-red btn-full">Reject</button>
       </form>
-      <a href="/admin/records/{{ r.id }}/history" class="btn btn-grey btn-sm" style="align-self:center">History</a>
     </div>
   </div>
   {% endfor %}
@@ -60,13 +60,13 @@
         <td style="font-weight:600">{{ '%.1f'|format(r.hours|float) }}</td>
         <td style="font-size:0.85rem">{{ r.description or '—' }}</td>
         <td style="white-space:nowrap">
+          <a href="/approvals/{{ r.id }}/review" class="btn btn-outline btn-sm">Review</a>
           <form method="POST" action="/approvals/{{ r.id }}/approve" style="display:inline">
-            <button type="submit" class="btn btn-green btn-sm">Approve</button>
+            <button type="submit" class="btn btn-green btn-sm">✓</button>
           </form>
           <form method="POST" action="/approvals/{{ r.id }}/reject" style="display:inline" onsubmit="return confirm('Reject this record?')">
-            <button type="submit" class="btn btn-red btn-sm">Reject</button>
+            <button type="submit" class="btn btn-red btn-sm">✗</button>
           </form>
-          <a href="/admin/records/{{ r.id }}/history" class="btn btn-grey btn-sm">History</a>
         </td>
       </tr>
       {% endfor %}

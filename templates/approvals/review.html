@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}Review Record{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Review Record</h1>
+  <a href="/approvals" class="btn btn-outline btn-sm">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="vertical-align:-2px"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Back
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-title">Submitted by {{ record.user.display_name }}</div>
+  <form method="POST">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div class="field" style="margin-bottom:0">
+        <label for="date">Date</label>
+        <input type="date" name="date" id="date" value="{{ record.date.isoformat() }}" required>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label for="hours">Hours</label>
+        <input type="number" name="hours" id="hours" value="{{ record.hours }}"
+               step="0.25" min="0.25" max="24" required>
+      </div>
+    </div>
+    <div class="field">
+      <label for="category_id">Category</label>
+      <select name="category_id" id="category_id" required>
+        {% for cat in categories %}
+        <option value="{{ cat.id }}" {% if cat.id == record.category_id %}selected{% endif %}>
+          {{ cat.name }} ({{ cat.hour_type.value }})
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="description">Description</label>
+      <textarea name="description" id="description">{{ record.description or '' }}</textarea>
+    </div>
+    <div class="field">
+      <label for="comment">Approver comment <span style="font-weight:400;color:var(--muted)">(optional — shown in record history)</span></label>
+      <textarea name="comment" id="comment" style="height:70px" placeholder="Add a note for the member…"></textarea>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <button type="submit" name="action" value="approve" class="btn btn-green">Approve</button>
+      <button type="submit" name="action" value="reject" class="btn btn-red"
+              onclick="return confirm('Reject this record?')">Reject</button>
+    </div>
+  </form>
+</div>
+
+{% endblock %}

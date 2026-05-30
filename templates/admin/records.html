@@ -78,6 +78,7 @@
         <td style="font-size:0.85rem">{{ r.description or '—' }}</td>
         <td><span class="badge badge-{{ r.status.value }}">{{ r.status.value }}</span></td>
         <td style="white-space:nowrap">
+          <a href="/admin/records/{{ r.id }}/edit" class="btn btn-outline btn-sm">Edit</a>
           <a href="/admin/records/{{ r.id }}/history" class="btn btn-grey btn-sm">History</a>
           <form method="POST" action="/admin/records/{{ r.id }}/delete" style="display:inline" onsubmit="return confirm('Delete this record? This cannot be undone.')">
             <button type="submit" class="btn btn-red btn-sm">Delete</button>
