@@ -34,10 +34,6 @@
           <option value="other">Other</option>
         </select>
       </div>
-      <div class="field" style="flex:1;min-width:110px;margin-bottom:0">
-        <label for="d4h_tag_id">D4H Tag ID <span style="font-weight:400;color:var(--muted)">(opt.)</span></label>
-        <input type="number" name="d4h_tag_id" id="d4h_tag_id" placeholder="e.g. 42">
-      </div>
       <button type="submit" class="btn" style="flex-shrink:0;align-self:flex-end">Add</button>
     </div>
   </form>
@@ -52,7 +48,7 @@
     <div class="record-card-top">
       <div>
         <div class="record-card-cat">{{ cat.name }}</div>
-        <div class="record-card-meta" style="margin-top:3px">D4H Tag: {{ cat.d4h_tag_id or '—' }}</div>
+        <div class="record-card-meta" style="margin-top:3px">{{ 'Active' if cat.is_active else 'Inactive' }}</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
         <span class="badge ht-{{ cat.hour_type.value }}">{{ cat.hour_type.value|capitalize }}</span>
@@ -71,13 +67,12 @@
 <!-- Desktop: table -->
 <div class="table-wrap desktop-only">
   <table>
-    <thead><tr><th>Name</th><th>Hour Type</th><th>D4H Tag ID</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>Name</th><th>Hour Type</th><th>Status</th><th></th></tr></thead>
     <tbody>
       {% for cat in categories %}
       <tr {% if not cat.is_active %}style="opacity:.5"{% endif %}>
         <td style="font-weight:600">{{ cat.name }}</td>
         <td><span class="badge ht-{{ cat.hour_type.value }}">{{ cat.hour_type.value|capitalize }}</span></td>
-        <td style="color:var(--muted)">{{ cat.d4h_tag_id or '—' }}</td>
         <td>{% if cat.is_active %}<span class="badge badge-approved">Active</span>{% else %}<span class="badge badge-draft">Inactive</span>{% endif %}</td>
         <td>
           <form method="POST" action="/admin/categories/{{ cat.id }}/toggle" style="display:inline">
@@ -96,7 +91,7 @@
 
 <p style="font-size:0.78rem;color:var(--muted);margin-top:12px;padding:0 2px">
   <strong>Primary</strong> and <strong>Secondary</strong> hours count toward the volunteer tax credit.
-  Tag categories to match the D4H activity tags used on incidents, exercises, and events.
+  The hour type determines how records count toward the volunteer tax credit.
 </p>
 
 {% endblock %}

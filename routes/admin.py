@@ -19,6 +19,8 @@ admin_bp = Blueprint('admin', __name__)
 @require_role('admin')
 def index():
     db = get_db()
+    from sqlalchemy import func
+    last_sync = db.query(func.max(D4HMember.last_synced_at)).scalar()
     return render_template('admin/index.html',
         pending=db.query(HoursRecord).filter_by(status=RecordStatus.pending).count(),
         total_records=db.query(HoursRecord).count(),
@@ -26,6 +28,7 @@ def index():
         total_categories=db.query(Category).filter_by(is_active=True).count(),
         total_d4h_members=db.query(D4HMember).filter(
             D4HMember.status != 'Retired').count(),
+        last_sync=last_sync,
     )
 
 
