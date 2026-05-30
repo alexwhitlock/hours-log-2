@@ -41,6 +41,9 @@ def run_migrations() -> None:
     """Migrate the database schema to the two-level HoursEntry/HoursRecord model."""
     sql = __import__('sqlalchemy').text
     with _engine.connect() as conn:
+        # Clean up any leftover temp table from a failed previous migration
+        conn.execute(sql('DROP TABLE IF EXISTS users_new'))
+
         # ── 1. Recreate users table with google_sub nullable ──────────────────
         existing_cols = [r[1] for r in conn.execute(sql('PRAGMA table_info(users)'))]
         if existing_cols:
