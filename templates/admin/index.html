@@ -119,8 +119,15 @@
       msg.textContent = d.message || 'Syncing…';
       pct.textContent = d.percent + '%';
     } else {
-      wrap.style.display = 'none';
-      bar.style.width = '0%';
+      // Animate to 100% before hiding
+      wrap.style.display = 'block';
+      bar.style.width = '100%';
+      msg.textContent = d.error ? 'Failed' : 'Complete';
+      pct.textContent = d.error ? '' : '100%';
+      setTimeout(() => {
+        wrap.style.display = 'none';
+        bar.style.width = '0%';
+      }, 600);
       if (d.result) {
         const m = d.result.members, h = d.result.hours, s = d.result.submission;
         let txt = `${m.added} members added, ${m.updated} updated, ${m.linked} linked · ${h.upserted} D4H hour records synced`;

@@ -51,11 +51,18 @@ def new():
 
         if action == 'submit':
             from mail import notify_pending_submitted
-            approvers = db.query(User).filter(
-                User.role.in_([UserRole.approver, UserRole.admin]),
-                User.is_active == True,
-                User.notify_pending == NotifyPref.realtime,
-            ).all()
+            from models import CategoryApprover
+            assigned_user_ids = {
+                a.user_id for a in db.query(CategoryApprover)
+                .filter_by(category_id=record.category_id).all()
+            }
+            approvers = [
+                u for u in db.query(User).filter(
+                    User.is_active == True,
+                    User.notify_pending == NotifyPref.realtime,
+                ).all()
+                if u.role == UserRole.admin or u.id in assigned_user_ids
+            ]
             submitter = db.get(User, session['user_id'])
             for approver in approvers:
                 notify_pending_submitted(approver.email, approver.display_name,
