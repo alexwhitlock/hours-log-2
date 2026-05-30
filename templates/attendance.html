@@ -8,6 +8,8 @@
   .ht-secondary { background:#d1ecf1;color:#0c5460; }
   .ht-other     { background:#fef7e0;color:#7a5c00; }
   .ht-none      { background:#ededee;color:#555; }
+  .src-d4h { background:#e8f0fe;color:#1a73e8; }
+  .src-hl  { background:#f3e8fd;color:#7b1fa2; }
 </style>
 {% endblock %}
 {% block content %}
@@ -20,130 +22,88 @@
   </a>
 </div>
 
-<!-- D4H Attendance -->
-<div class="card" style="margin-bottom:14px">
-  <div class="card-title">D4H Attendance ({{ d4h_hours|length }} records since 2026-01-01)</div>
+{% if records %}
 
-  {% if d4h_hours %}
-  <div class="filter-bar" data-section="d4h">
-    <input type="search" class="filter-text" placeholder="Search activity…" style="flex:1;min-width:120px">
+<div class="card" style="margin-bottom:10px">
+  <div class="filter-bar" data-section="att">
+    <input type="search" class="filter-text" placeholder="Search activity or category…" style="flex:1;min-width:140px">
     <div class="filter-chips">
-      <button class="chip active" data-type="">All</button>
+      <button class="chip active" data-type="" data-source="">All</button>
+      <button class="chip" data-source="d4h">D4H</button>
+      <button class="chip" data-source="hl">Hours Log</button>
       <button class="chip" data-type="primary">Primary</button>
       <button class="chip" data-type="secondary">Secondary</button>
       <button class="chip" data-type="other">Other</button>
-      <button class="chip" data-type="none">None</button>
     </div>
   </div>
-
-  <!-- Mobile: cards -->
-  <div class="mobile-only" id="d4h-cards">
-    {% for h in d4h_hours %}
-    <div class="record-card" data-search="{{ h.activity_name|lower }} {{ h.activity_type|lower }}" data-type="{{ h.hour_type.value }}" data-source="d4h">
-      <div class="record-card-top">
-        <div>
-          <div class="record-card-cat">{{ h.activity_name or 'Unknown Activity' }}</div>
-          <div class="record-card-meta">{{ h.date.strftime('%Y-%m-%d') }} · {{ h.activity_type|capitalize if h.activity_type else '—' }}</div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-weight:700;font-size:1rem">{{ '%.2f'|format(h.hours|float) }}h</div>
-          <span class="badge ht-{{ h.hour_type.value }}" style="margin-top:4px">{{ h.hour_type.value|capitalize }}</span>
-        </div>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-
-  <!-- Desktop: table -->
-  <div class="table-wrap desktop-only" style="box-shadow:none;border-radius:0;margin:0 -16px">
-    <table id="d4h-table">
-      <thead>
-        <tr>
-          <th>Date</th><th>Activity</th><th>Type</th><th>Hour Type</th><th style="text-align:right">Hours</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for h in d4h_hours %}
-        <tr data-search="{{ h.activity_name|lower }} {{ h.activity_type|lower }}" data-type="{{ h.hour_type.value }}" data-source="d4h">
-          <td>{{ h.date.strftime('%Y-%m-%d') }}</td>
-          <td>{{ h.activity_name or '—' }}</td>
-          <td style="text-transform:capitalize">{{ h.activity_type or '—' }}</td>
-          <td><span class="badge ht-{{ h.hour_type.value }}">{{ h.hour_type.value|capitalize }}</span></td>
-          <td style="text-align:right;font-weight:600">{{ '%.2f'|format(h.hours|float) }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  {% else %}
-  <p style="font-size:0.85rem;color:var(--muted);margin:0">
-    No D4H attendance records found. Make sure your account is linked to a D4H member.
-  </p>
-  {% endif %}
 </div>
 
-<!-- Hours Log Records -->
-<div class="card">
-  <div class="card-title">Hours Log Records ({{ tool_records|length }} total)</div>
-
-  {% if tool_records %}
-  <div class="filter-bar" data-section="hl">
-    <input type="search" class="filter-text" placeholder="Search category or description…" style="flex:1;min-width:120px">
-    <div class="filter-chips">
-      <button class="chip active" data-type="">All</button>
-      <button class="chip" data-type="primary">Primary</button>
-      <button class="chip" data-type="secondary">Secondary</button>
-      <button class="chip" data-type="other">Other</button>
-      <button class="chip" data-type="none">None</button>
-    </div>
-  </div>
-
-  <!-- Mobile: cards -->
-  <div class="mobile-only" id="hl-cards">
-    {% for r in tool_records %}
-    <div class="record-card" data-search="{{ (r.category.name if r.category else '')|lower }} {{ (r.description or '')|lower }}" data-type="{{ r.category.hour_type.value if r.category else 'none' }}" data-source="hl">
-      <div class="record-card-top">
-        <div>
-          <div class="record-card-cat">{{ r.category.name if r.category else '—' }}</div>
-          <div class="record-card-meta">{{ r.date.strftime('%Y-%m-%d') }}{% if r.description %} · {{ r.description[:60] }}{% if r.description|length > 60 %}…{% endif %}{% endif %}</div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-weight:700;font-size:1rem">{{ '%.2f'|format(r.hours|float) }}h</div>
-          <span class="badge badge-{{ r.status.value }}" style="margin-top:4px">{{ r.status.value|capitalize }}</span>
+<!-- Mobile: cards -->
+<div class="mobile-only" id="att-cards">
+  {% for r in records %}
+  <div class="record-card"
+       data-search="{{ r.search }}"
+       data-type="{{ r.hour_type }}"
+       data-source="{{ r.source }}">
+    <div class="record-card-top">
+      <div>
+        <div class="record-card-cat">{{ r.name }}</div>
+        <div class="record-card-meta">
+          {{ r.date.strftime('%Y-%m-%d') }}
+          {% if r.sub %} · {{ r.sub }}{% endif %}
         </div>
       </div>
+      <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+        <div style="font-weight:700;font-size:1rem">{{ '%.2f'|format(r.hours) }}h</div>
+        <span class="badge ht-{{ r.hour_type }}">{{ r.hour_type|capitalize }}</span>
+        <span class="badge src-{{ r.source }}">{{ 'D4H' if r.source == 'd4h' else 'Hours Log' }}</span>
+      </div>
     </div>
-    {% endfor %}
   </div>
-
-  <!-- Desktop: table -->
-  <div class="table-wrap desktop-only" style="box-shadow:none;border-radius:0;margin:0 -16px">
-    <table id="hl-table">
-      <thead>
-        <tr>
-          <th>Date</th><th>Category</th><th>Hour Type</th><th>Description</th><th>Status</th><th style="text-align:right">Hours</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in tool_records %}
-        <tr data-search="{{ (r.category.name if r.category else '')|lower }} {{ (r.description or '')|lower }}" data-type="{{ r.category.hour_type.value if r.category else 'none' }}" data-source="hl">
-          <td>{{ r.date.strftime('%Y-%m-%d') }}</td>
-          <td>{{ r.category.name if r.category else '—' }}</td>
-          <td>{% if r.category %}<span class="badge ht-{{ r.category.hour_type.value }}">{{ r.category.hour_type.value|capitalize }}</span>{% else %}—{% endif %}</td>
-          <td style="font-size:0.85rem">{{ r.description or '—' }}</td>
-          <td><span class="badge badge-{{ r.status.value }}">{{ r.status.value|capitalize }}</span></td>
-          <td style="text-align:right;font-weight:600">{{ '%.2f'|format(r.hours|float) }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  {% else %}
-  <p style="font-size:0.85rem;color:var(--muted);margin:0">No hours log records submitted yet.</p>
-  {% endif %}
+  {% endfor %}
 </div>
+
+<!-- Desktop: table -->
+<div class="table-wrap desktop-only">
+  <table id="att-table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Name / Category</th>
+        <th>Details</th>
+        <th>Source</th>
+        <th>Hour Type</th>
+        <th>Status</th>
+        <th style="text-align:right">Hours</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in records %}
+      <tr data-search="{{ r.search }}"
+          data-type="{{ r.hour_type }}"
+          data-source="{{ r.source }}">
+        <td>{{ r.date.strftime('%Y-%m-%d') }}</td>
+        <td style="font-weight:600">{{ r.name }}</td>
+        <td style="font-size:0.85rem">{{ r.sub or '—' }}</td>
+        <td><span class="badge src-{{ r.source }}">{{ 'D4H' if r.source == 'd4h' else 'Hours Log' }}</span></td>
+        <td><span class="badge ht-{{ r.hour_type }}">{{ r.hour_type|capitalize }}</span></td>
+        <td>
+          {% if r.status %}<span class="badge badge-{{ r.status }}">{{ r.status|capitalize }}</span>
+          {% else %}—{% endif %}
+        </td>
+        <td style="text-align:right;font-weight:600">{{ '%.2f'|format(r.hours) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% else %}
+<div class="empty">
+  <div class="empty-icon">📋</div>
+  <p>No attendance records found yet.</p>
+</div>
+{% endif %}
 
 {% endblock %}
 {% block scripts %}
@@ -152,16 +112,17 @@ document.querySelectorAll('.filter-bar').forEach(bar => {
   const section = bar.dataset.section;
   const textInput = bar.querySelector('.filter-text');
   const chips = bar.querySelectorAll('.chip');
-  let activeType = '';
+  let activeType = '', activeSource = '';
 
   function applyFilter() {
     const q = textInput ? textInput.value.toLowerCase().trim() : '';
     document.querySelectorAll(
       '#' + section + '-table tbody tr, #' + section + '-cards .record-card'
     ).forEach(el => {
-      const matchText = !q || (el.dataset.search || '').includes(q);
-      const matchType = !activeType || el.dataset.type === activeType;
-      el.style.display = matchText && matchType ? '' : 'none';
+      const matchText   = !q            || (el.dataset.search  || '').includes(q);
+      const matchType   = !activeType   || el.dataset.type   === activeType;
+      const matchSource = !activeSource || el.dataset.source === activeSource;
+      el.style.display = matchText && matchType && matchSource ? '' : 'none';
     });
   }
 
@@ -169,9 +130,23 @@ document.querySelectorAll('.filter-bar').forEach(bar => {
 
   chips.forEach(chip => {
     chip.addEventListener('click', () => {
-      chips.forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      activeType = chip.dataset.type;
+      if (chip.dataset.source !== undefined && chip.dataset.type !== undefined) {
+        // "All" chip — reset both
+        activeType = ''; activeSource = '';
+        chips.forEach(c => c.classList.remove('active'));
+      } else if (chip.dataset.source !== undefined && !chip.dataset.type) {
+        // source chip
+        activeSource = activeSource === chip.dataset.source ? '' : chip.dataset.source;
+        chips.forEach(c => { if (c.dataset.source !== undefined && !c.dataset.type) c.classList.remove('active'); });
+        if (activeSource) chip.classList.add('active');
+        else chips[0].classList.add('active');
+      } else {
+        // type chip
+        activeType = activeType === chip.dataset.type ? '' : chip.dataset.type;
+        chips.forEach(c => { if (c.dataset.type && !c.dataset.source) c.classList.remove('active'); });
+        if (activeType) chip.classList.add('active');
+        else chips[0].classList.add('active');
+      }
       applyFilter();
     });
   });

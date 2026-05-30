@@ -14,7 +14,7 @@ def require_login(f):
     @functools.wraps(f)
     def decorated(*args, **kwargs):
         if 'user_id' not in session:
-            return redirect(url_for('auth.login'))
+            return redirect(url_for('auth.login_page'))
         return f(*args, **kwargs)
     return decorated
 
@@ -25,7 +25,7 @@ def require_role(min_role: str):
         @functools.wraps(f)
         def decorated(*args, **kwargs):
             if 'user_id' not in session:
-                return redirect(url_for('auth.login'))
+                return redirect(url_for('auth.login_page'))
             if _order.get(session.get('role', ''), -1) < _order[min_role]:
                 abort(403)
             return f(*args, **kwargs)
@@ -98,7 +98,7 @@ def callback():
 @auth_bp.route('/auth/logout')
 def logout():
     session.clear()
-    return redirect(url_for('auth.login'))
+    return redirect(url_for('auth.login_page'))
 
 
 @auth_bp.route('/login')

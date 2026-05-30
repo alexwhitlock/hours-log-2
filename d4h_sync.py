@@ -137,10 +137,15 @@ def _fetch_member_attendance(config: dict, member_id: int, tag_cache: dict) -> l
             break
 
         all_before = True
+        _logged_sample = False
         for rec in batch:
             starts = (rec.get('startsAt') or '')[:10]
             if starts >= SYNC_START_DATE:
                 all_before = False
+                if not _logged_sample:
+                    logger.debug(f'Attendance record sample keys: {list(rec.keys())}')
+                    logger.debug(f'Attendance record sample: {rec}')
+                    _logged_sample = True
                 if rec.get('status') != 'ATTENDING':
                     continue
                 activity = rec.get('activity') or {}

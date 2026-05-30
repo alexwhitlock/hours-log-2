@@ -306,10 +306,34 @@ def member_detail(member_id):
     from d4h_sync import hours_by_year
     summary = hours_by_year(d4h_hours, tool_records, year)
 
+    records = []
+    for h in d4h_hours:
+        records.append({
+            'source': 'd4h',
+            'date': h.date,
+            'name': h.activity_name or 'Unknown Activity',
+            'sub': h.activity_type.capitalize() if h.activity_type else '—',
+            'hour_type': h.hour_type.value,
+            'hours': float(h.hours),
+            'status': None,
+            'search': f"{(h.activity_name or '').lower()} {(h.activity_type or '').lower()}",
+        })
+    for r in tool_records:
+        records.append({
+            'source': 'hl',
+            'date': r.date,
+            'name': r.category.name if r.category else '—',
+            'sub': r.description[:60] if r.description else '',
+            'hour_type': r.category.hour_type.value if r.category else 'none',
+            'hours': float(r.hours),
+            'status': r.status.value,
+            'search': f"{(r.category.name if r.category else '').lower()} {(r.description or '').lower()}",
+        })
+    records.sort(key=lambda x: x['date'], reverse=True)
+
     return render_template('admin/member_detail.html',
                            member=member,
-                           d4h_hours=d4h_hours,
-                           tool_records=tool_records,
+                           records=records,
                            summary=summary,
                            year=year,
                            years=years)

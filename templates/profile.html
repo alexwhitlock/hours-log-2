@@ -50,68 +50,36 @@
   <!-- Conditions -->
   <div style="display:flex;flex-direction:column;gap:5px;font-size:0.82rem">
     <div style="display:flex;align-items:center;gap:8px">
-      {% if hours_ok %}
-      <span style="color:var(--green);font-weight:700">✓</span>
-      {% else %}
-      <span style="color:var(--muted)">○</span>
-      {% endif %}
-      <span style="color:{% if hours_ok %}var(--green){% else %}var(--muted){% endif %}">
-        200+ tax credit hours
-        {% if not hours_ok %} — {{ '%.1f'|format(tc_min - tc_hrs) }} more needed{% endif %}
+      <span style="font-weight:700;color:{% if hours_ok %}var(--green){% else %}var(--red){% endif %}">{% if hours_ok %}✓{% else %}✗{% endif %}</span>
+      <span style="color:{% if hours_ok %}var(--green){% else %}var(--red){% endif %}">
+        200+ tax credit hours{% if not hours_ok %} — {{ '%.1f'|format(tc_min - tc_hrs) }} more needed{% endif %}
       </span>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
-      {% if primary_ok %}
-      <span style="color:var(--green);font-weight:700">✓</span>
-      {% else %}
-      <span style="color:var(--muted)">○</span>
-      {% endif %}
-      <span style="color:{% if primary_ok %}var(--green){% else %}var(--muted){% endif %}">
-        Primary hours exceed Secondary
+      <span style="font-weight:700;color:{% if primary_ok %}var(--green){% else %}var(--red){% endif %}">{% if primary_ok %}✓{% else %}✗{% endif %}</span>
+      <span style="color:{% if primary_ok %}var(--green){% else %}var(--red){% endif %}">
+        {% if primary_ok %}Primary hours exceed Secondary{% else %}Primary hours do not exceed Secondary{% endif %}
         ({{ '%.1f'|format(summary.primary|float) }} P vs {{ '%.1f'|format(summary.secondary|float) }} S)
       </span>
     </div>
   </div>
 </div>
 
-<!-- Hours summary for year -->
+{% if not has_d4h %}
 <div class="card" style="margin-bottom:14px">
-  <div class="card-title">{{ year }} Hours Summary</div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px">
-    <div style="text-align:center;padding:12px 8px;background:#d4edda;border-radius:8px">
-      <div style="font-size:1.6rem;font-weight:700;color:#155724">{{ '%.1f'|format(summary.primary|float) }}</div>
-      <div style="font-size:0.72rem;font-weight:700;color:#155724;text-transform:uppercase;letter-spacing:.04em;margin-top:3px">Primary</div>
-    </div>
-    <div style="text-align:center;padding:12px 8px;background:#d1ecf1;border-radius:8px">
-      <div style="font-size:1.6rem;font-weight:700;color:#0c5460">{{ '%.1f'|format(summary.secondary|float) }}</div>
-      <div style="font-size:0.72rem;font-weight:700;color:#0c5460;text-transform:uppercase;letter-spacing:.04em;margin-top:3px">Secondary</div>
-    </div>
-    <div style="text-align:center;padding:12px 8px;background:#fef7e0;border-radius:8px">
-      <div style="font-size:1.6rem;font-weight:700;color:#7a5c00">{{ '%.1f'|format(summary.other|float) }}</div>
-      <div style="font-size:0.72rem;font-weight:700;color:#7a5c00;text-transform:uppercase;letter-spacing:.04em;margin-top:3px">Other</div>
-    </div>
-    <div style="text-align:center;padding:12px 8px;background:#e8f0fe;border-radius:8px">
-      <div style="font-size:1.6rem;font-weight:700;color:#1a73e8">{{ '%.1f'|format(summary.tax_credit|float) }}</div>
-      <div style="font-size:0.72rem;font-weight:700;color:#1a73e8;text-transform:uppercase;letter-spacing:.04em;margin-top:3px">Tax Credit</div>
-    </div>
-    <div style="text-align:center;padding:12px 8px;background:#f4f5f7;border-radius:8px">
-      <div style="font-size:1.6rem;font-weight:700;color:#1a1a1a">{{ '%.1f'|format(summary.total|float) }}</div>
-      <div style="font-size:0.72rem;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.04em;margin-top:3px">Total</div>
-    </div>
-  </div>
-  {% if not has_d4h %}
-  <p style="font-size:0.78rem;color:var(--muted);margin-top:12px">
-    ⚠ Your account is not yet linked to a D4H member. D4H hours will appear once an admin runs a sync.
-  </p>
-  {% endif %}
-  {% if pending_count or draft_count %}
-  <div style="margin-top:10px;font-size:0.82rem;color:var(--muted)">
-    {% if draft_count %}{{ draft_count }} draft{% if draft_count > 1 %}s{% endif %} · {% endif %}
-    {% if pending_count %}{{ pending_count }} pending approval{% endif %}
-    (not included above until approved)
-  </div>
-  {% endif %}
+  <p style="font-size:0.85rem;color:var(--muted);margin:0">⚠ Your account is not yet linked to a D4H member. D4H hours will appear once an admin runs a sync.</p>
 </div>
+{% endif %}
+{% if pending_count or draft_count %}
+<div class="card" style="margin-bottom:14px">
+  <p style="font-size:0.85rem;color:var(--muted);margin:0">
+    {% if draft_count %}{{ draft_count }} draft{% if draft_count > 1 %}s{% endif %}{% endif %}
+    {% if draft_count and pending_count %} · {% endif %}
+    {% if pending_count %}{{ pending_count }} pending approval{% endif %}
+    — not included in totals until approved.
+  </p>
+</div>
+{% endif %}
 
 <a href="/attendance" class="btn btn-outline btn-full" style="margin-bottom:8px">View All Attendance Records</a>
 
