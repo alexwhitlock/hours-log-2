@@ -154,8 +154,7 @@ def _start_weekly_scheduler(app: 'Flask') -> None:
                 # 3am jobs
                 now = _dt.now()
                 if now.hour == 3 and last_submission_date != now.date():
-                    with app.app_context():
-                        _run_d4h_submission(app.config['D4H_CONFIG'])
+                    _run_nightly_sync_and_submit(app.config['D4H_CONFIG'])
                     last_submission_date = now.date()
                     # Monthly progress summary on the 1st of each month
                     if now.day == 1:
@@ -168,15 +167,19 @@ def _start_weekly_scheduler(app: 'Flask') -> None:
     logger.info('Summary scheduler started.')
 
 
-def _run_d4h_submission(config: dict) -> None:
+def _run_nightly_sync_and_submit(config: dict) -> None:
     from db import _Session
+    from d4h_sync import sync_all
     from d4h_submit import run_submission
     db = _Session()
     try:
+        logger.info('Nightly sync: starting D4H pull…')
+        sync_all(config, db)
+        logger.info('Nightly sync: D4H pull complete, starting submission…')
         result = run_submission(db, config)
-        logger.info(f'D4H nightly submission complete: {result}')
+        logger.info(f'Nightly sync & submit complete: {result}')
     except Exception:
-        logger.exception('D4H nightly submission error')
+        logger.exception('Nightly sync & submit error')
     finally:
         db.close()
 

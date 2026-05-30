@@ -64,44 +64,19 @@
 
 </div>
 
-<!-- Submit to D4H -->
-<div class="card" style="margin-bottom:14px">
-  <div class="card-title">Submit to D4H</div>
+<!-- D4H Sync -->
+<div class="card">
+  <div class="card-title">D4H Sync</div>
   <p style="font-size:0.85rem;color:var(--muted);margin-bottom:14px">
-    Pushes all approved hours records to monthly D4H summary events, grouped by hour type.
-    Runs automatically at 3am daily — use this to trigger an immediate submission.
+    Pulls all members and attendance hours from D4H, then pushes approved hours records
+    back to D4H monthly summary events. Runs automatically at 3am daily.
+    Takes 1–3 minutes.
   </p>
   {% if d4h_needs_resync_count %}
   <p style="font-size:0.82rem;color:var(--red);margin-bottom:10px">
     ⚠ {{ d4h_needs_resync_count }} record{{ 's' if d4h_needs_resync_count != 1 }} pending re-sync to D4H.
   </p>
   {% endif %}
-  <form method="POST" action="/admin/d4h-submit">
-    <button type="submit" class="btn"
-            onclick="return confirm('Submit all approved hours to D4H now?')">
-      Submit to D4H
-    </button>
-  </form>
-  <div id="submit-progress-wrap" style="display:none;margin-top:12px">
-    <div style="display:flex;justify-content:space-between;margin-bottom:5px">
-      <span id="submit-message" style="font-size:0.82rem;color:var(--muted)"></span>
-      <span id="submit-pct" style="font-size:0.82rem;font-weight:700;color:var(--accent)"></span>
-    </div>
-    <div style="background:#e8eaed;border-radius:999px;height:8px;overflow:hidden">
-      <div id="submit-bar" style="background:var(--accent);height:100%;border-radius:999px;width:0%;transition:width .4s ease"></div>
-    </div>
-  </div>
-  <div id="submit-result" style="margin-top:10px;font-size:0.82rem;color:var(--muted)"></div>
-</div>
-
-<!-- D4H Sync -->
-<div class="card">
-  <div class="card-title">D4H Sync</div>
-  <p style="font-size:0.85rem;color:var(--muted);margin-bottom:14px">
-    Pulls all members and attendance hours (since 2026-01-01) from D4H.
-    Deactivates retired members, links Google accounts to D4H records.
-    Runs in the background — takes 1–3 minutes.
-  </p>
   {% if last_sync %}
   <p style="font-size:0.82rem;color:var(--muted);margin-bottom:12px">
     Last synced: <strong style="color:var(--text)">{{ last_sync.strftime('%Y-%m-%d %H:%M') }}</strong>
@@ -110,7 +85,7 @@
   <form method="POST" action="/admin/sync">
     <button type="submit" class="btn"
             onclick="return confirm('Start a D4H sync? This runs in the background.')">
-      Sync from D4H
+      Sync with D4H
     </button>
   </form>
   <!-- Progress bar (shown while running) -->
@@ -130,49 +105,11 @@
 {% block scripts %}
 <script>
 (function() {
-  const bar  = document.getElementById('submit-bar');
-  const msg  = document.getElementById('submit-message');
-  const pct  = document.getElementById('submit-pct');
-  const wrap = document.getElementById('submit-progress-wrap');
-  const res  = document.getElementById('submit-result');
-  let timer  = null;
-
-  function updateSubmit(d) {
-    if (d.running) {
-      wrap.style.display = 'block';
-      res.textContent = '';
-      bar.style.width = (d.percent || 50) + '%';
-      msg.textContent = d.message || 'Submitting…';
-    } else {
-      wrap.style.display = 'none';
-      bar.style.width = '0%';
-      if (d.result) {
-        const r = d.result;
-        res.textContent = `Submitted: ${r.pushed} records pushed, ${r.failed} failed, ${r.skipped} groups already up to date`;
-        res.style.color = r.failed ? 'var(--red)' : 'var(--green)';
-      } else if (d.error) {
-        res.textContent = `Failed: ${d.error}`;
-        res.style.color = 'var(--red)';
-      }
-    }
-  }
-
-  function pollSubmit() {
-    fetch('/admin/d4h-submit/status').then(r => r.json()).then(d => {
-      updateSubmit(d);
-      if (d.running) timer = setTimeout(pollSubmit, 2000);
-    });
-  }
-  pollSubmit();
-})();
-
-(function() {
   const bar  = document.getElementById('sync-bar');
   const msg  = document.getElementById('sync-message');
   const pct  = document.getElementById('sync-pct');
   const wrap = document.getElementById('sync-progress-wrap');
   const res  = document.getElementById('sync-result');
-  let timer  = null;
 
   function update(d) {
     if (d.running) {
@@ -185,11 +122,13 @@
       wrap.style.display = 'none';
       bar.style.width = '0%';
       if (d.result) {
-        const m = d.result.members, h = d.result.hours;
-        res.textContent = `Last sync: ${m.added} members added, ${m.updated} updated, ${m.linked} linked, ${m.deactivated} deactivated · ${h.upserted} hour records synced`;
+        const m = d.result.members, h = d.result.hours, s = d.result.submission;
+        let txt = `${m.added} members added, ${m.updated} updated, ${m.linked} linked · ${h.upserted} D4H hour records synced`;
+        if (s) txt += ` · ${s.pushed} records submitted to D4H`;
+        res.textContent = txt;
         res.style.color = 'var(--green)';
       } else if (d.error) {
-        res.textContent = `Last sync failed: ${d.error}`;
+        res.textContent = `Sync failed: ${d.error}`;
         res.style.color = 'var(--red)';
       }
     }
@@ -198,12 +137,9 @@
   function poll() {
     fetch('/admin/sync/status').then(r => r.json()).then(d => {
       update(d);
-      if (d.running) {
-        timer = setTimeout(poll, 2000);
-      }
+      if (d.running) setTimeout(poll, 2000);
     });
   }
-
   poll();
 })();
 </script>

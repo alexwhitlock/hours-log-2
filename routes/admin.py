@@ -262,14 +262,18 @@ def _progress(phase: str, message: str, percent: int) -> None:
 def _run_sync_background(config: dict) -> None:
     from db import _Session
     from d4h_sync import sync_all
+    from d4h_submit import run_submission
     db = _Session()
     try:
         result = sync_all(config, db, progress=_progress)
+        _progress('submit', 'Submitting approved hours to D4H…', 98)
+        submit_result = run_submission(db, config)
+        result['submission'] = submit_result
         _sync_status.update({
             'running': False, 'result': result, 'error': None,
-            'phase': 'done', 'message': 'Sync complete', 'percent': 100,
+            'phase': 'done', 'message': 'Sync & submit complete', 'percent': 100,
         })
-        logger.info(f'Sync complete: {result}')
+        logger.info(f'Sync & submit complete: {result}')
     except Exception as e:
         logger.exception('Sync failed')
         _sync_status.update({
