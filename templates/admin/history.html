@@ -1,31 +1,37 @@
 {% extends 'base.html' %}
-{% block title %}Record History{% endblock %}
+{% block title %}Entry History{% endblock %}
 {% block content %}
 
 <div class="page-header">
-  <h1>Record History</h1>
+  <h1>Entry History</h1>
   <a href="/admin/records" class="btn btn-outline"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="vertical-align:-2px"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Back</a>
 </div>
 
 <div class="record-card" style="margin-bottom:18px">
   <div class="record-card-top">
     <div>
-      <div class="record-card-meta">{{ record.user.display_name }} · {{ record.date.strftime('%B %d, %Y') }}</div>
-      <div class="record-card-cat">{{ record.category.name }}</div>
-      {% if record.description %}
-      <div class="record-card-desc" style="margin-top:4px">{{ record.description }}</div>
+      <div class="record-card-meta">{{ entry.submitter.display_name }} · {{ entry.date.strftime('%B %d, %Y') }}</div>
+      <div class="record-card-cat">{{ entry.category.name }}</div>
+      {% if entry.description %}
+      <div class="record-card-desc" style="margin-top:4px">{{ entry.description }}</div>
+      {% endif %}
+      {% if entry.records|length > 1 %}
+      <div style="font-size:0.78rem;color:var(--muted);margin-top:4px">
+        for:
+        {% for r in entry.records %}{{ r.user.display_name }}{% if not loop.last %}, {% endif %}{% endfor %}
+      </div>
       {% endif %}
     </div>
     <div style="text-align:right">
-      <div class="record-card-hours">{{ '%.1f'|format(record.hours|float) }} hrs</div>
-      <span class="badge badge-{{ record.status.value }}">{{ record.status.value }}</span>
+      <div class="record-card-hours">{{ '%.1f'|format(entry.hours|float) }} hrs</div>
+      <span class="badge badge-{{ entry.status.value }}">{{ entry.status.value }}</span>
     </div>
   </div>
 </div>
 
 <div class="card-title" style="padding:0 2px;margin-bottom:10px">Timeline</div>
 
-{% for h in record.history %}
+{% for h in entry.history %}
 <div class="card" style="margin-bottom:10px;padding:12px 14px">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
     <div>

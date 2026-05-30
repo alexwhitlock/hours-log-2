@@ -38,32 +38,69 @@ def close_db(e=None) -> None:
 
 
 def run_migrations() -> None:
-    """Add columns that may not exist in an older database."""
-    new_columns = [
-        ('users', 'notify_approval', "TEXT NOT NULL DEFAULT 'weekly'"),
-        ('users', 'notify_pending',  "TEXT NOT NULL DEFAULT 'weekly'"),
-        ('users', 'last_weekly_sent', 'DATETIME'),
-        ('users', 'notify_monthly_summary', 'INTEGER NOT NULL DEFAULT 0'),
-        ('users', 'notify_tax_credit', 'INTEGER NOT NULL DEFAULT 1'),
-        ('users', 'tax_credit_notified_year', 'INTEGER'),
-        ('hours_records', 'auto_role_assignment_id', 'INTEGER REFERENCES admin_role_assignments(id)'),
-        ('hours_records', 'd4h_needs_resync', 'INTEGER NOT NULL DEFAULT 0'),
-        ('categories', 'is_system', 'INTEGER NOT NULL DEFAULT 0'),
-    ]
+    """Migrate the database schema to the two-level HoursEntry/HoursRecord model."""
     sql = __import__('sqlalchemy').text
     with _engine.connect() as conn:
-        for table, col, col_def in new_columns:
-            existing = [r[1] for r in conn.execute(sql(f'PRAGMA table_info({table})'))]
-            if col not in existing:
-                conn.execute(sql(f'ALTER TABLE {table} ADD COLUMN {col} {col_def}'))
+        # ── 1. Recreate users table with google_sub nullable ──────────────────
+        existing_cols = [r[1] for r in conn.execute(sql('PRAGMA table_info(users)'))]
+        if existing_cols:
+            # Check if google_sub is currently NOT NULL by inspecting notnull flag
+            col_info = {r[1]: r for r in conn.execute(sql('PRAGMA table_info(users)'))}
+            google_sub_notnull = col_info.get('google_sub', (None, None, None, None, None, None))[3]
+            if google_sub_notnull:
+                # Need to recreate the table with google_sub nullable
+                conn.execute(sql('PRAGMA foreign_keys=OFF'))
+                conn.execute(sql('''
+                    CREATE TABLE users_new (
+                        id INTEGER PRIMARY KEY,
+                        google_sub TEXT UNIQUE,
+                        email TEXT NOT NULL UNIQUE,
+                        username TEXT NOT NULL,
+                        display_name TEXT NOT NULL,
+                        role TEXT NOT NULL DEFAULT 'member',
+                        d4h_member_id INTEGER REFERENCES d4h_members(id),
+                        is_active INTEGER NOT NULL DEFAULT 1,
+                        created_at DATETIME NOT NULL,
+                        last_login_at DATETIME,
+                        notify_approval TEXT NOT NULL DEFAULT 'weekly',
+                        notify_pending TEXT NOT NULL DEFAULT 'weekly',
+                        notify_monthly_summary INTEGER NOT NULL DEFAULT 0,
+                        notify_tax_credit INTEGER NOT NULL DEFAULT 1,
+                        last_weekly_sent DATETIME,
+                        tax_credit_notified_year INTEGER
+                    )
+                '''))
+                conn.execute(sql('INSERT INTO users_new SELECT * FROM users'))
+                conn.execute(sql('DROP TABLE users'))
+                conn.execute(sql('ALTER TABLE users_new RENAME TO users'))
+                conn.execute(sql('PRAGMA foreign_keys=ON'))
 
-        # Set new defaults on existing users who still have old 'off' values
+        # ── 2. Drop old history and records tables ────────────────────────────
+        # Check if old record_history references hours_records (old schema)
+        rh_cols = [r[1] for r in conn.execute(sql('PRAGMA table_info(record_history)'))]
+        if 'record_id' in rh_cols:
+            conn.execute(sql('DROP TABLE IF EXISTS record_history'))
+
+        # Drop old hours_records if it has old schema (category_id column = old model)
+        hr_cols = [r[1] for r in conn.execute(sql('PRAGMA table_info(hours_records)'))]
+        if 'category_id' in hr_cols:
+            conn.execute(sql('DROP TABLE IF EXISTS hours_records'))
+
+        # Drop hours_entries if it exists with wrong schema (shouldn't happen, but safe)
+        # Let create_all() create hours_entries, new hours_records, record_history fresh
+
+        conn.commit()
+
+    # ── 3. create_all() creates new tables ───────────────────────────────────
+    from models import Base
+    Base.metadata.create_all(_engine)
+
+    with _engine.connect() as conn:
+        # ── 4. Notify preference defaults ────────────────────────────────────
         conn.execute(sql("UPDATE users SET notify_approval = 'weekly' WHERE notify_approval = 'off'"))
         conn.execute(sql("UPDATE users SET notify_pending  = 'weekly' WHERE notify_pending  = 'off'"))
 
-        # category_approvers table is created by create_all; no column migration needed
-
-        # Seed system categories for auto-role hours
+        # ── 5. Seed system categories ─────────────────────────────────────────
         for ht in ('primary', 'secondary', 'other'):
             exists = conn.execute(sql(
                 f"SELECT id FROM categories WHERE is_system=1 AND hour_type='{ht}'"
@@ -74,7 +111,7 @@ def run_migrations() -> None:
                     f"VALUES ('System: {ht.capitalize()}', '{ht}', 1, 1, datetime('now'))"
                 ))
 
-        # Seed default settings if not present
+        # ── 6. Seed default settings ──────────────────────────────────────────
         from settings import DEFAULTS
         for key, value in DEFAULTS.items():
             existing = conn.execute(sql(f"SELECT key FROM settings WHERE key = '{key}'")).fetchone()

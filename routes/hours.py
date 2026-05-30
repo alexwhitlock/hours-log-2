@@ -5,7 +5,7 @@ from flask import (Blueprint, abort, flash, redirect, render_template, request,
 
 from auth import require_login
 from db import get_db
-from models import (Category, D4HHours, HoursRecord, RecordHistory,
+from models import (Category, D4HHours, EntryHistory, HoursEntry, HoursRecord,
                     RecordStatus, User, NotifyPref, UserRole)
 
 hours_bp = Blueprint('hours', __name__)
@@ -17,11 +17,21 @@ hours_bp = Blueprint('hours', __name__)
 def index():
     db = get_db()
     show_rejected = request.args.get('show_rejected') == '1'
-    q = db.query(HoursRecord).filter_by(user_id=session['user_id'])
+    # Query HoursRecord for current user, then get distinct entries
+    records_qs = db.query(HoursRecord).filter_by(user_id=session['user_id']).all()
+    entry_ids = {r.entry_id for r in records_qs}
+    q = db.query(HoursEntry).filter(HoursEntry.id.in_(entry_ids))
     if not show_rejected:
-        q = q.filter(HoursRecord.status != RecordStatus.rejected)
-    records = q.order_by(HoursRecord.date.desc()).all()
-    return render_template('hours/index.html', records=records, show_rejected=show_rejected)
+        q = q.filter(HoursEntry.status != RecordStatus.rejected)
+    entries = q.order_by(HoursEntry.date.desc()).all()
+    # Build a map of entry_id -> list of user records (for "for N people" display)
+    entry_record_map = {}
+    for r in records_qs:
+        entry_record_map.setdefault(r.entry_id, []).append(r)
+    return render_template('hours/index.html', entries=entries,
+                           entry_record_map=entry_record_map,
+                           current_user_id=session['user_id'],
+                           show_rejected=show_rejected)
 
 
 @hours_bp.route('/hours/new', methods=['GET', 'POST'])
@@ -29,21 +39,34 @@ def index():
 def new():
     db = get_db()
     categories = db.query(Category).filter(Category.is_active==True, Category.is_system==False).order_by(Category.name).all()
+    all_members = db.query(User).filter_by(is_active=True).order_by(User.display_name).all()
 
     if request.method == 'POST':
         action = request.form.get('action', 'draft')
-        record = HoursRecord(
-            user_id=session['user_id'],
+        user_ids_raw = request.form.getlist('user_ids')
+        # Deduplicate and validate user IDs
+        user_ids = list(dict.fromkeys(
+            int(uid) for uid in user_ids_raw if uid.strip().isdigit()
+        ))
+        if not user_ids:
+            user_ids = [session['user_id']]
+
+        entry = HoursEntry(
+            submitted_by=session['user_id'],
             category_id=int(request.form['category_id']),
             date=date.fromisoformat(request.form['date']),
             hours=float(request.form['hours']),
             description=request.form.get('description', '').strip() or None,
             status=RecordStatus.pending if action == 'submit' else RecordStatus.draft,
         )
-        db.add(record)
+        db.add(entry)
         db.flush()
-        db.add(RecordHistory(
-            record_id=record.id,
+
+        for uid in user_ids:
+            db.add(HoursRecord(entry_id=entry.id, user_id=uid))
+
+        db.add(EntryHistory(
+            entry_id=entry.id,
             action='submitted' if action == 'submit' else 'created',
             performed_by=session['user_id'],
         ))
@@ -54,7 +77,7 @@ def new():
             from models import CategoryApprover
             assigned_user_ids = {
                 a.user_id for a in db.query(CategoryApprover)
-                .filter_by(category_id=record.category_id).all()
+                .filter_by(category_id=entry.category_id).all()
             }
             approvers = [
                 u for u in db.query(User).filter(
@@ -66,94 +89,113 @@ def new():
             submitter = db.get(User, session['user_id'])
             for approver in approvers:
                 notify_pending_submitted(approver.email, approver.display_name,
-                                         submitter.display_name, record)
+                                         submitter.display_name, entry)
 
         flash('Submitted for approval.' if action == 'submit' else 'Saved as draft.')
         return redirect(url_for('hours.index'))
 
-    return render_template('hours/form.html', record=None, categories=categories,
+    return render_template('hours/form.html', entry=None, categories=categories,
+                           all_members=all_members,
+                           current_user_id=session['user_id'],
                            today=date.today().isoformat())
 
 
-@hours_bp.route('/hours/<int:record_id>/edit', methods=['GET', 'POST'])
+@hours_bp.route('/hours/<int:entry_id>/edit', methods=['GET', 'POST'])
 @require_login
-def edit(record_id):
+def edit(entry_id):
     db = get_db()
+    # Verify current user has a record in this entry
     record = db.query(HoursRecord).filter_by(
-        id=record_id, user_id=session['user_id']).first()
+        entry_id=entry_id, user_id=session['user_id']).first()
     if not record:
         abort(404)
-    if record.status not in (RecordStatus.draft, RecordStatus.pending):
-        flash('Only draft or pending records can be edited.')
+    entry = record.entry
+    if not entry or entry.submitted_by != session['user_id']:
+        abort(404)
+    if entry.status not in (RecordStatus.draft, RecordStatus.pending):
+        flash('Only draft or pending entries can be edited.')
         return redirect(url_for('hours.index'))
 
     categories = db.query(Category).filter(Category.is_active==True, Category.is_system==False).order_by(Category.name).all()
+    all_members = db.query(User).filter_by(is_active=True).order_by(User.display_name).all()
 
     if request.method == 'POST':
         action = request.form.get('action', 'draft')
-        was_pending = record.status == RecordStatus.pending
+        was_pending = entry.status == RecordStatus.pending
         before = {
-            'date': str(record.date), 'hours': str(record.hours),
-            'description': record.description, 'category_id': record.category_id,
-            'status': record.status.value,
+            'date': str(entry.date), 'hours': str(entry.hours),
+            'description': entry.description, 'category_id': entry.category_id,
+            'status': entry.status.value,
         }
-        record.category_id = int(request.form['category_id'])
-        record.date = date.fromisoformat(request.form['date'])
-        record.hours = float(request.form['hours'])
-        record.description = request.form.get('description', '').strip() or None
-        # Editing always moves back to draft; user must re-submit
-        record.status = RecordStatus.pending if action == 'submit' else RecordStatus.draft
-        record.updated_at = datetime.now()
-        db.add(RecordHistory(
-            record_id=record.id,
+        entry.category_id = int(request.form['category_id'])
+        entry.date = date.fromisoformat(request.form['date'])
+        entry.hours = float(request.form['hours'])
+        entry.description = request.form.get('description', '').strip() or None
+        entry.status = RecordStatus.pending if action == 'submit' else RecordStatus.draft
+        entry.updated_at = datetime.now()
+
+        db.add(EntryHistory(
+            entry_id=entry.id,
             action='submitted' if action == 'submit' else 'edited',
             performed_by=session['user_id'],
             changes={'before': before, 'after': {
-                'date': str(record.date), 'hours': str(record.hours),
-                'description': record.description, 'category_id': record.category_id,
-                'status': record.status.value,
+                'date': str(entry.date), 'hours': str(entry.hours),
+                'description': entry.description, 'category_id': entry.category_id,
+                'status': entry.status.value,
             }},
         ))
         db.commit()
         if action == 'submit':
             flash('Re-submitted for approval.')
         elif was_pending:
-            flash('Record moved back to draft.')
+            flash('Entry moved back to draft.')
         else:
             flash('Draft saved.')
         return redirect(url_for('hours.index'))
 
-    return render_template('hours/form.html', record=record, categories=categories,
+    return render_template('hours/form.html', entry=entry, categories=categories,
+                           all_members=all_members,
+                           current_user_id=session['user_id'],
                            today=date.today().isoformat())
 
 
-@hours_bp.route('/hours/<int:record_id>/delete', methods=['POST'])
+@hours_bp.route('/hours/<int:entry_id>/delete', methods=['POST'])
 @require_login
-def delete(record_id):
+def delete(entry_id):
     db = get_db()
     record = db.query(HoursRecord).filter_by(
-        id=record_id, user_id=session['user_id']).first()
+        entry_id=entry_id, user_id=session['user_id']).first()
     if not record:
         abort(404)
-    if record.status not in (RecordStatus.draft, RecordStatus.pending):
-        flash('Only draft or pending records can be deleted.', 'error')
+    entry = record.entry
+    if not entry:
+        abort(404)
+    if entry.status not in (RecordStatus.draft, RecordStatus.pending):
+        flash('Only draft or pending entries can be deleted.', 'error')
         return redirect(url_for('hours.index'))
-    db.query(RecordHistory).filter_by(record_id=record_id).delete()
-    db.delete(record)
+
+    # If this is the only record in the entry, delete the entry (cascades)
+    if len(entry.records) <= 1:
+        db.delete(entry)
+    else:
+        db.delete(record)
     db.commit()
     flash('Record deleted.')
     return redirect(url_for('hours.index'))
 
 
-@hours_bp.route('/hours/<int:record_id>/history')
+@hours_bp.route('/hours/<int:entry_id>/history')
 @require_login
-def history(record_id):
+def history(entry_id):
     db = get_db()
     record = db.query(HoursRecord).filter_by(
-        id=record_id, user_id=session['user_id']).first()
+        entry_id=entry_id, user_id=session['user_id']).first()
     if not record:
         abort(404)
-    return render_template('hours/history.html', record=record)
+    entry = record.entry
+    if not entry:
+        abort(404)
+    return render_template('hours/history.html', entry=entry)
 
 
 @hours_bp.route('/profile/notifications', methods=['POST'])
@@ -185,8 +227,8 @@ def profile():
     year = int(request.args.get('year', date_cls.today().year))
 
     tool_records = db.query(HoursRecord).filter_by(user_id=user.id).all()
-    pending_count = sum(1 for r in tool_records if r.status == RecordStatus.pending)
-    draft_count = sum(1 for r in tool_records if r.status == RecordStatus.draft)
+    pending_count = sum(1 for r in tool_records if r.entry and r.entry.status == RecordStatus.pending)
+    draft_count = sum(1 for r in tool_records if r.entry and r.entry.status == RecordStatus.draft)
 
     d4h_hours_list = []
     if user.d4h_member_id:
@@ -224,7 +266,6 @@ def attendance():
 
     tool_records = (db.query(HoursRecord)
                     .filter_by(user_id=user.id)
-                    .order_by(HoursRecord.date.desc())
                     .all())
 
     records = []
@@ -240,15 +281,18 @@ def attendance():
             'search': f"{(h.activity_name or '').lower()} {(h.activity_type or '').lower()}",
         })
     for r in tool_records:
+        e = r.entry
+        if not e:
+            continue
         records.append({
             'source': 'hl',
-            'date': r.date,
-            'name': r.category.name if r.category else '—',
-            'sub': r.description[:60] if r.description else '',
-            'hour_type': r.category.hour_type.value if r.category else 'none',
-            'hours': float(r.hours),
-            'status': r.status.value,
-            'search': f"{(r.category.name if r.category else '').lower()} {(r.description or '').lower()}",
+            'date': e.date,
+            'name': e.category.name if e.category else '—',
+            'sub': e.description[:60] if e.description else '',
+            'hour_type': e.category.hour_type.value if e.category else 'none',
+            'hours': float(e.hours),
+            'status': e.status.value,
+            'search': f"{(e.category.name if e.category else '').lower()} {(e.description or '').lower()}",
         })
     records.sort(key=lambda x: x['date'], reverse=True)
 

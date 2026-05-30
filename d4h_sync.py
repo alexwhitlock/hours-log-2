@@ -176,7 +176,7 @@ def _fetch_member_attendance(config: dict, member_id: int, tag_cache: dict,
 # ── Member sync ───────────────────────────────────────────────────────────────
 
 def sync_members(config: dict, db, progress=None) -> dict:
-    from models import D4HMember, User
+    from models import D4HMember, User, UserRole
 
     if progress:
         progress('Fetching members from D4H…', 2)
@@ -240,6 +240,34 @@ def sync_members(config: dict, db, progress=None) -> dict:
             linked += 1
 
     db.commit()
+
+    # Auto-create User records for D4H members that don't have one
+    for m in raw_members:
+        mid = int(m.id)
+        existing_user = db.query(User).filter_by(d4h_member_id=mid).first()
+        if not existing_user and _norm_status(m.status) != 'Retired':
+            username = m.google_account.lower() if m.google_account else f'd4h_{mid}'
+            # Use email from d4h member or construct a placeholder
+            email = m.email or None
+            if not email:
+                # Skip creating user without email — they can't log in anyway
+                # but we need a unique placeholder for the unique constraint
+                email = f'd4h_{mid}@d4h.placeholder'
+            # Check if username or email already taken
+            existing_by_username = db.query(User).filter_by(username=username).first()
+            existing_by_email = db.query(User).filter_by(email=email).first()
+            if not existing_by_username and not existing_by_email:
+                db.add(User(
+                    google_sub=None,
+                    email=email,
+                    username=username,
+                    display_name=m.full_name,
+                    role=UserRole.member,
+                    d4h_member_id=mid,
+                    is_active=True,
+                ))
+    db.commit()
+
     logger.info(
         f'Member sync: {added} added, {updated} updated, {linked} linked, '
         f'{deactivated} deactivated, {reactivated} reactivated, '
@@ -365,6 +393,11 @@ def sync_all(config: dict, db, progress=None) -> dict:
 
 
 def hours_by_year(d4h_hours_list, tool_records_qs, year: int) -> dict:
+    """Compute hour totals for a given year.
+
+    d4h_hours_list: list of D4HHours objects
+    tool_records_qs: list of HoursRecord objects (new schema — metadata via record.entry)
+    """
     from models import RecordStatus, HourType
     totals = {t.value: Decimal('0') for t in HourType}
     for h in d4h_hours_list:
@@ -372,9 +405,10 @@ def hours_by_year(d4h_hours_list, tool_records_qs, year: int) -> dict:
             totals[h.hour_type.value] += h.hours
     approved = {RecordStatus.approved, RecordStatus.submitted}
     for r in tool_records_qs:
-        if r.date.year == year and r.status in approved:
-            ht = r.category.hour_type.value if r.category and r.category.hour_type else 'none'
-            totals[ht] += Decimal(str(r.hours))
+        e = r.entry
+        if e.date.year == year and e.status in approved:
+            ht = e.category.hour_type.value if e.category and e.category.hour_type else 'none'
+            totals[ht] += Decimal(str(e.hours))
     totals['tax_credit'] = totals['primary'] + totals['secondary']
     totals['total'] = sum(totals[k] for k in ('primary', 'secondary', 'other', 'none'))
     return totals

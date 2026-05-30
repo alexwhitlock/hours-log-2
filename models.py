@@ -83,7 +83,7 @@ class User(Base):
     __tablename__ = 'users'
 
     id = Column(Integer, primary_key=True)
-    google_sub = Column(String(128), unique=True, nullable=False, index=True)
+    google_sub = Column(String(128), unique=True, nullable=True, index=True)
     email = Column(String(256), unique=True, nullable=False, index=True)
     username = Column(String(64), nullable=False)
     display_name = Column(String(256), nullable=False)
@@ -103,6 +103,10 @@ class User(Base):
 
     records = relationship('HoursRecord', back_populates='user',
                            foreign_keys='HoursRecord.user_id')
+    submitted_entries = relationship('HoursEntry', back_populates='submitter',
+                                     foreign_keys='HoursEntry.submitted_by')
+    approved_entries = relationship('HoursEntry', back_populates='approver_user',
+                                    foreign_keys='HoursEntry.approved_by')
     d4h_member = relationship('D4HMember', back_populates='user')
 
 
@@ -121,11 +125,11 @@ class Category(Base):
                              cascade='all, delete-orphan')
 
 
-class HoursRecord(Base):
-    __tablename__ = 'hours_records'
+class HoursEntry(Base):
+    __tablename__ = 'hours_entries'
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    submitted_by = Column(Integer, ForeignKey('users.id'), nullable=False)
     category_id = Column(Integer, ForeignKey('categories.id'), nullable=False)
     date = Column(Date, nullable=False)
     hours = Column(Numeric(5, 2), nullable=False)
@@ -134,34 +138,51 @@ class HoursRecord(Base):
                     default=RecordStatus.draft)
     approved_by = Column(Integer, ForeignKey('users.id'), nullable=True)
     approved_at = Column(DateTime, nullable=True)
-    d4h_submitted_by = Column(Integer, ForeignKey('users.id'), nullable=True)
-    d4h_submitted_at = Column(DateTime, nullable=True)
-    d4h_record_id = Column(String(128), nullable=True)
-    auto_role_assignment_id = Column(Integer, ForeignKey('admin_role_assignments.id'), nullable=True, index=True)
+    auto_role_assignment_id = Column(Integer, ForeignKey('admin_role_assignments.id'),
+                                     nullable=True, index=True)
     d4h_needs_resync = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, nullable=False, default=datetime.now)
     updated_at = Column(DateTime, nullable=False, default=datetime.now,
                         onupdate=datetime.now)
 
-    user = relationship('User', back_populates='records', foreign_keys=[user_id])
+    submitter = relationship('User', back_populates='submitted_entries',
+                             foreign_keys=[submitted_by])
+    approver_user = relationship('User', back_populates='approved_entries',
+                                 foreign_keys=[approved_by])
     category = relationship('Category')
-    approver = relationship('User', foreign_keys=[approved_by])
-    d4h_submitter = relationship('User', foreign_keys=[d4h_submitted_by])
-    history = relationship('RecordHistory', back_populates='record',
-                           order_by='RecordHistory.timestamp')
+    records = relationship('HoursRecord', back_populates='entry',
+                           cascade='all, delete-orphan')
+    history = relationship('EntryHistory', back_populates='entry',
+                           order_by='EntryHistory.timestamp',
+                           cascade='all, delete-orphan')
+    auto_role_assignment = relationship('AdminRoleAssignment', back_populates='entries')
 
 
-class RecordHistory(Base):
+class HoursRecord(Base):
+    __tablename__ = 'hours_records'
+
+    id = Column(Integer, primary_key=True)
+    entry_id = Column(Integer, ForeignKey('hours_entries.id'), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    d4h_record_id = Column(String(64), nullable=True)
+    d4h_needs_resync = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+
+    entry = relationship('HoursEntry', back_populates='records')
+    user = relationship('User', back_populates='records', foreign_keys=[user_id])
+
+
+class EntryHistory(Base):
     __tablename__ = 'record_history'
 
     id = Column(Integer, primary_key=True)
-    record_id = Column(Integer, ForeignKey('hours_records.id'), nullable=False)
+    entry_id = Column(Integer, ForeignKey('hours_entries.id'), nullable=False)
     action = Column(String(64), nullable=False)
     performed_by = Column(Integer, ForeignKey('users.id'), nullable=False)
     timestamp = Column(DateTime, nullable=False, default=datetime.now)
     changes = Column(JSON, nullable=True)
 
-    record = relationship('HoursRecord', back_populates='history')
+    entry = relationship('HoursEntry', back_populates='history')
     actor = relationship('User', foreign_keys=[performed_by])
 
 
@@ -207,6 +228,7 @@ class AdminRoleAssignment(Base):
 
     user = relationship('User')
     admin_role = relationship('AdminRole', back_populates='assignments')
+    entries = relationship('HoursEntry', back_populates='auto_role_assignment')
 
 
 class Setting(Base):

@@ -4,6 +4,7 @@
 <style>
   @media (max-width: 640px) { .desktop-only { display: none !important; } }
   @media (min-width: 641px) { .mobile-only  { display: none !important; } }
+  .people-pill { display:inline-block;background:var(--accent-light,#e8f0fe);color:var(--accent,#1a73e8);border-radius:999px;padding:2px 8px;font-size:0.75rem;font-weight:600;margin:1px 2px; }
 </style>
 {% endblock %}
 {% block container_class %}wide{% endblock %}
@@ -11,36 +12,39 @@
 
 <div class="page-header">
   <h1>Approvals</h1>
-  <span style="font-size:0.85rem;color:var(--muted);font-weight:600">{{ records|length }} pending</span>
+  <span style="font-size:0.85rem;color:var(--muted);font-weight:600">{{ entries|length }} pending</span>
 </div>
 
-{% if records %}
+{% if entries %}
 <input type="search" id="approvals-search" placeholder="Search member, category, or description…"
        style="width:100%;margin-bottom:10px">
 
 <!-- Mobile: cards -->
 <div class="mobile-only" id="approvals-cards">
-  {% for r in records %}
-  <div class="record-card" data-search="{{ r.user.display_name|lower }} {{ r.category.name|lower }} {{ (r.description or '')|lower }}">
+  {% for e in entries %}
+  <div class="record-card" data-search="{{ e.submitter.display_name|lower }} {{ e.category.name|lower }} {{ (e.description or '')|lower }}">
     <div class="record-card-top">
       <div>
-        <div class="record-card-meta">{{ r.user.display_name }} · {{ r.date.strftime('%b %d, %Y') }}</div>
-        <div class="record-card-cat">{{ r.category.name }}</div>
-        {% if r.description %}<div class="record-card-desc" style="margin-top:4px">{{ r.description }}</div>{% endif %}
+        <div class="record-card-meta">{{ e.submitter.display_name }} · {{ e.date.strftime('%b %d, %Y') }}</div>
+        <div class="record-card-cat">{{ e.category.name }}</div>
+        {% if e.description %}<div class="record-card-desc" style="margin-top:4px">{{ e.description }}</div>{% endif %}
+        <div style="margin-top:4px">
+          {% for r in e.records %}<span class="people-pill">{{ r.user.display_name }}</span>{% endfor %}
+        </div>
       </div>
       <div style="text-align:right">
-        <div class="record-card-hours">{{ '%.1f'|format(r.hours|float) }} hrs</div>
+        <div class="record-card-hours">{{ '%.1f'|format(e.hours|float) }} hrs</div>
       </div>
     </div>
     <div class="record-card-actions">
-      <a href="/approvals/{{ r.id }}/review" class="btn btn-outline btn-sm">Edit</a>
-      <form method="POST" action="/approvals/{{ r.id }}/approve" style="flex:1">
+      <a href="/approvals/{{ e.id }}/review" class="btn btn-outline btn-sm">Edit</a>
+      <form method="POST" action="/approvals/{{ e.id }}/approve" style="flex:1">
         <button type="submit" class="btn btn-green btn-full">Approve</button>
       </form>
-      <form method="POST" action="/approvals/{{ r.id }}/reject" style="flex:1" onsubmit="return confirm('Reject this record?')">
+      <form method="POST" action="/approvals/{{ e.id }}/reject" style="flex:1" onsubmit="return confirm('Reject this entry?')">
         <button type="submit" class="btn btn-red btn-full">Reject</button>
       </form>
-      <form method="POST" action="/approvals/{{ r.id }}/delete" onsubmit="return confirm('Delete this record?')">
+      <form method="POST" action="/approvals/{{ e.id }}/delete" onsubmit="return confirm('Delete this entry?')">
         <button type="submit" class="btn btn-grey btn-sm">Delete</button>
       </form>
     </div>
@@ -52,25 +56,26 @@
 <div class="table-wrap desktop-only">
   <table id="approvals-table">
     <thead>
-      <tr><th data-col="0">Member</th><th data-col="1">Date</th><th data-col="2">Category</th><th data-col="3">Hrs</th><th data-col="4">Description</th><th></th></tr>
+      <tr><th data-col="0">Submitter</th><th data-col="1">Date</th><th data-col="2">Category</th><th data-col="3">Hrs</th><th data-col="4">Description</th><th data-col="5">For</th><th></th></tr>
     </thead>
     <tbody id="approvals-body">
-      {% for r in records %}
-      <tr data-search="{{ r.user.display_name|lower }} {{ r.category.name|lower }} {{ (r.description or '')|lower }}">
-        <td style="font-weight:600">{{ r.user.display_name }}</td>
-        <td style="white-space:nowrap">{{ r.date.strftime('%b %d, %Y') }}</td>
-        <td>{{ r.category.name }}</td>
-        <td style="font-weight:600">{{ '%.1f'|format(r.hours|float) }}</td>
-        <td style="font-size:0.85rem">{{ r.description or '—' }}</td>
+      {% for e in entries %}
+      <tr data-search="{{ e.submitter.display_name|lower }} {{ e.category.name|lower }} {{ (e.description or '')|lower }}">
+        <td style="font-weight:600">{{ e.submitter.display_name }}</td>
+        <td style="white-space:nowrap">{{ e.date.strftime('%b %d, %Y') }}</td>
+        <td>{{ e.category.name }}</td>
+        <td style="font-weight:600">{{ '%.1f'|format(e.hours|float) }}</td>
+        <td style="font-size:0.85rem">{{ e.description or '—' }}</td>
+        <td>{% for r in e.records %}<span class="people-pill">{{ r.user.display_name }}</span>{% endfor %}</td>
         <td style="white-space:nowrap">
-          <a href="/approvals/{{ r.id }}/review" class="btn btn-outline btn-sm">Edit</a>
-          <form method="POST" action="/approvals/{{ r.id }}/approve" style="display:inline">
+          <a href="/approvals/{{ e.id }}/review" class="btn btn-outline btn-sm">Edit</a>
+          <form method="POST" action="/approvals/{{ e.id }}/approve" style="display:inline">
             <button type="submit" class="btn btn-green btn-sm">✓</button>
           </form>
-          <form method="POST" action="/approvals/{{ r.id }}/reject" style="display:inline" onsubmit="return confirm('Reject this record?')">
+          <form method="POST" action="/approvals/{{ e.id }}/reject" style="display:inline" onsubmit="return confirm('Reject this entry?')">
             <button type="submit" class="btn btn-red btn-sm">✗</button>
           </form>
-          <form method="POST" action="/approvals/{{ r.id }}/delete" style="display:inline" onsubmit="return confirm('Delete this record?')">
+          <form method="POST" action="/approvals/{{ e.id }}/delete" style="display:inline" onsubmit="return confirm('Delete this entry?')">
             <button type="submit" class="btn btn-grey btn-sm">Delete</button>
           </form>
         </td>
@@ -83,7 +88,7 @@
 {% else %}
 <div class="empty">
   <div class="empty-icon">✓</div>
-  <p>No pending records — all caught up.</p>
+  <p>No pending entries — all caught up.</p>
 </div>
 {% endif %}
 

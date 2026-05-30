@@ -33,7 +33,7 @@ def is_last_day_of_month(d: date = None) -> bool:
 
 def generate_monthly_role_hours(db) -> int:
     from sqlalchemy import extract
-    from models import AdminRole, AdminRoleAssignment, HoursRecord, RecordStatus
+    from models import AdminRole, AdminRoleAssignment, HoursEntry, HoursRecord, RecordStatus
 
     today = date.today()
     if not is_last_day_of_month(today):
@@ -51,10 +51,10 @@ def generate_monthly_role_hours(db) -> int:
 
     generated = 0
     for assignment in active:
-        existing = db.query(HoursRecord).filter(
-            HoursRecord.auto_role_assignment_id == assignment.id,
-            extract('year',  HoursRecord.date) == today.year,
-            extract('month', HoursRecord.date) == today.month,
+        existing = db.query(HoursEntry).filter(
+            HoursEntry.auto_role_assignment_id == assignment.id,
+            extract('year',  HoursEntry.date) == today.year,
+            extract('month', HoursEntry.date) == today.month,
         ).first()
         if existing:
             continue
@@ -62,17 +62,24 @@ def generate_monthly_role_hours(db) -> int:
         role = assignment.admin_role
         hours = pro_rated_hours(role.monthly_hours, today.year, today.month,
                                 assignment.start_date, assignment.end_date)
-        record = HoursRecord(
-            user_id=assignment.user_id,
+        record_date = today
+
+        entry = HoursEntry(
+            submitted_by=assignment.user_id,
             category_id=role.category_id,
-            date=today,
+            date=record_date,
             hours=hours,
             description=f'Auto: {role.name}',
             status=RecordStatus.approved,
             approved_at=datetime.now(),
             auto_role_assignment_id=assignment.id,
         )
+        db.add(entry)
+        db.flush()
+
+        record = HoursRecord(entry_id=entry.id, user_id=assignment.user_id)
         db.add(record)
+
         generated += 1
         logger.info(
             f'Role hours: generated {role.monthly_hours}h for user {assignment.user_id} '

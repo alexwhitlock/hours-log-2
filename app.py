@@ -207,6 +207,7 @@ def _send_monthly_progress_summaries(app) -> None:
         for user in users:
             d4h_hours = db.query(D4HHours).filter_by(
                 d4h_member_id=user.d4h_member_id).all() if user.d4h_member_id else []
+            # tool_records is now list of HoursRecord; hours_by_year reads via record.entry
             tool_records = db.query(HoursRecord).filter_by(user_id=user.id).all()
             summary = hours_by_year(d4h_hours, tool_records, year)
             send_monthly_progress(
@@ -258,11 +259,14 @@ def _send_summaries(app: 'Flask') -> None:
             d4h_hours = db.query(D4HHours).filter_by(
                 d4h_member_id=user.d4h_member_id).all() if user.d4h_member_id else []
             summary = hours_by_year(d4h_hours, tool_records, year)
-            pending = sum(1 for r in tool_records if r.status == RecordStatus.pending)
+            pending = sum(
+                1 for r in tool_records
+                if r.entry and r.entry.status == RecordStatus.pending
+            )
             approved_recent = sum(
                 1 for r in tool_records
-                if r.status == RecordStatus.approved
-                and r.approved_at and r.approved_at > datetime.now() - interval
+                if r.entry and r.entry.status == RecordStatus.approved
+                and r.entry.approved_at and r.entry.approved_at > datetime.now() - interval
             )
             if send_weekly_summary(user.email, user.display_name, pending,
                                    approved_recent, float(summary['tax_credit'])):
