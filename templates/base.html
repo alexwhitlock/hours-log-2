@@ -173,6 +173,10 @@
     .chip { padding:4px 12px; border-radius:999px; border:1.5px solid var(--border); background:#fff; font-size:0.78rem; font-weight:600; cursor:pointer; color:var(--muted); transition:all .12s; }
     .chip:hover { border-color:var(--accent); color:var(--accent); }
     .chip.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+    th[data-col] { cursor:pointer; user-select:none; }
+    th[data-col]:hover { background:var(--hover,#eee); }
+    th[data-col].sort-asc::after  { content:' ▲'; font-size:0.7em; opacity:0.7; }
+    th[data-col].sort-desc::after { content:' ▼'; font-size:0.7em; opacity:0.7; }
     select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
     textarea { height: 90px; resize: vertical; }
 
@@ -290,6 +294,41 @@
 
 {% block scripts %}{% endblock %}
 <script>
+function initTableSort(tableId) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+  const tbody = table.querySelector('tbody');
+  if (!tbody) return;
+  let sortCol = -1, sortAsc = true;
+
+  table.querySelectorAll('thead th[data-col]').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = +th.dataset.col;
+      sortAsc = sortCol === col ? !sortAsc : true;
+      sortCol = col;
+
+      table.querySelectorAll('thead th[data-col]').forEach(h => {
+        h.classList.remove('sort-asc', 'sort-desc');
+        const arrow = h.querySelector('.th-arrow');
+        if (arrow) arrow.textContent = '▲';
+      });
+      th.classList.add(sortAsc ? 'sort-asc' : 'sort-desc');
+      const arrow = th.querySelector('.th-arrow');
+      if (arrow) arrow.textContent = sortAsc ? '▲' : '▼';
+
+      Array.from(tbody.querySelectorAll('tr'))
+        .sort((a, b) => {
+          const av = (a.dataset.vals || '').split('|')[col] ?? a.cells[col]?.textContent.trim() ?? '';
+          const bv = (b.dataset.vals || '').split('|')[col] ?? b.cells[col]?.textContent.trim() ?? '';
+          const an = parseFloat(av), bn = parseFloat(bv);
+          const cmp = isNaN(an) || isNaN(bn) ? av.localeCompare(bv) : an - bn;
+          return sortAsc ? cmp : -cmp;
+        })
+        .forEach(r => tbody.appendChild(r));
+    });
+  });
+}
+
 function tableFilter(inputId, tableBodyId, cardsId) {
   const input = document.getElementById(inputId);
   if (!input) return;

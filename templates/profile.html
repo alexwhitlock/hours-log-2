@@ -124,7 +124,7 @@
     <div class="field" style="margin-bottom:14px">
       <label>When my record is approved or rejected</label>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">
-        {% for val, label in [('off','Off'),('realtime','Real-time'),('weekly','Weekly digest')] %}
+        {% for val, label in [('off','Off'),('realtime','Real-time'),('daily','Daily summary'),('weekly','Weekly summary')] %}
         <label style="display:flex;align-items:center;gap:6px;font-size:0.9rem;font-weight:400;cursor:pointer">
           <input type="radio" name="notify_approval" value="{{ val }}"
                  {% if user.notify_approval.value == val %}checked{% endif %}>
@@ -137,7 +137,7 @@
     <div class="field" style="margin-bottom:14px">
       <label>When a new record is submitted for approval</label>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">
-        {% for val, label in [('off','Off'),('realtime','Real-time'),('weekly','Weekly digest')] %}
+        {% for val, label in [('off','Off'),('realtime','Real-time'),('daily','Daily summary'),('weekly','Weekly summary')] %}
         <label style="display:flex;align-items:center;gap:6px;font-size:0.9rem;font-weight:400;cursor:pointer">
           <input type="radio" name="notify_pending" value="{{ val }}"
                  {% if user.notify_pending.value == val %}checked{% endif %}>

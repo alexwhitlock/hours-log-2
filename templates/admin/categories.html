@@ -68,8 +68,8 @@
 
 <!-- Desktop: table -->
 <div class="table-wrap desktop-only">
-  <table>
-    <thead><tr><th>Name</th><th>Hour Type</th><th>Status</th><th></th></tr></thead>
+  <table id="cats-table">
+    <thead><tr><th data-col="0">Name</th><th data-col="1">Hour Type</th><th data-col="2">Status</th><th></th></tr></thead>
     <tbody id="cats-body">
       {% for cat in categories %}
       <tr data-search="{{ cat.name|lower }} {{ cat.hour_type.value }}" {% if not cat.is_active %}style="opacity:.5"{% endif %}>
@@ -98,5 +98,8 @@
 
 {% endblock %}
 {% block scripts %}
-<script>tableFilter('cats-search', 'cats-body', 'cats-cards');</script>
+<script>
+initTableSort('cats-table');
+tableFilter('cats-search', 'cats-body', 'cats-cards');
+</script>
 {% endblock %}

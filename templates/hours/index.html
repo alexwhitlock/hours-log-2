@@ -43,9 +43,9 @@
 
 <!-- Desktop: table -->
 <div class="table-wrap desktop-only">
-  <table>
+  <table id="hours-table">
     <thead>
-      <tr><th>Date</th><th>Category</th><th>Hours</th><th>Description</th><th>Status</th><th></th></tr>
+      <tr><th data-col="0">Date</th><th data-col="1">Category</th><th data-col="2">Hours</th><th data-col="3">Description</th><th data-col="4">Status</th><th></th></tr>
     </thead>
     <tbody id="hours-body">
       {% for r in records %}
@@ -83,5 +83,8 @@
 
 {% endblock %}
 {% block scripts %}
-<script>tableFilter('hours-search', 'hours-body', 'hours-cards');</script>
+<script>
+initTableSort('hours-table');
+tableFilter('hours-search', 'hours-body', 'hours-cards');
+</script>
 {% endblock %}

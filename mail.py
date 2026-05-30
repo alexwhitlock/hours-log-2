@@ -114,7 +114,7 @@ def notify_pending_submitted(approver_email: str, approver_name: str,
 
 def send_weekly_summary(user_email: str, user_name: str,
                         pending: int, approved_week: int, tc_hrs: float) -> None:
-    subject = 'Your weekly hours summary'
+    subject = 'Your hours log summary'
     html = f"""
 <p>Hi {user_name},</p>
 <p>Here's your weekly hours log summary:</p>

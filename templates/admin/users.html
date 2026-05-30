@@ -50,9 +50,9 @@
 
 <!-- Desktop: table -->
 <div class="table-wrap desktop-only">
-  <table>
+  <table id="users-table">
     <thead>
-      <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Last Login</th><th></th></tr>
+      <tr><th data-col="0">Name</th><th data-col="1">Email</th><th data-col="2">Role</th><th data-col="3">Status</th><th data-col="4">Last Login</th><th></th></tr>
     </thead>
     <tbody id="users-body">
       {% for u in users %}
@@ -85,5 +85,8 @@
 
 {% endblock %}
 {% block scripts %}
-<script>tableFilter('users-search', 'users-body', 'users-cards');</script>
+<script>
+initTableSort('users-table');
+tableFilter('users-search', 'users-body', 'users-cards');
+</script>
 {% endblock %}

@@ -140,60 +140,57 @@ def create_app() -> Flask:
 
 def _start_weekly_scheduler(app: 'Flask') -> None:
     import threading
-    from datetime import datetime, timedelta
 
     def _run():
         import time
         while True:
             time.sleep(3600)  # check every hour
             try:
-                _send_weekly_digests(app)
+                _send_summaries(app)
             except Exception:
-                logger.exception('Weekly digest error')
+                logger.exception('Summary scheduler error')
 
-    t = threading.Thread(target=_run, daemon=True, name='weekly-digest')
+    t = threading.Thread(target=_run, daemon=True, name='summary-scheduler')
     t.start()
-    logger.info('Weekly digest scheduler started.')
+    logger.info('Summary scheduler started.')
 
 
-def _send_weekly_digests(app: 'Flask') -> None:
+def _send_summaries(app: 'Flask') -> None:
     from datetime import datetime, timedelta
-    from decimal import Decimal
     from db import _Session
     from models import User, NotifyPref, HoursRecord, RecordStatus, D4HHours
     from mail import send_weekly_summary
     from d4h_sync import hours_by_year
 
-    cutoff = datetime.now() - timedelta(days=7)
     db = _Session()
     try:
         users = db.query(User).filter(
             User.is_active == True,
-            User.notify_approval == NotifyPref.weekly,
+            User.notify_approval.in_([NotifyPref.daily, NotifyPref.weekly]),
         ).all()
         year = datetime.now().year
         sent = 0
         for user in users:
-            if user.last_weekly_sent and user.last_weekly_sent > cutoff:
+            interval = timedelta(days=1 if user.notify_approval == NotifyPref.daily else 7)
+            if user.last_weekly_sent and user.last_weekly_sent > datetime.now() - interval:
                 continue
             tool_records = db.query(HoursRecord).filter_by(user_id=user.id).all()
             d4h_hours = db.query(D4HHours).filter_by(
                 d4h_member_id=user.d4h_member_id).all() if user.d4h_member_id else []
             summary = hours_by_year(d4h_hours, tool_records, year)
             pending = sum(1 for r in tool_records if r.status == RecordStatus.pending)
-            week_ago = datetime.now() - timedelta(days=7)
-            approved_week = sum(
+            approved_recent = sum(
                 1 for r in tool_records
                 if r.status == RecordStatus.approved
-                and r.approved_at and r.approved_at > week_ago
+                and r.approved_at and r.approved_at > datetime.now() - interval
             )
             if send_weekly_summary(user.email, user.display_name, pending,
-                                   approved_week, float(summary['tax_credit'])):
+                                   approved_recent, float(summary['tax_credit'])):
                 user.last_weekly_sent = datetime.now()
                 sent += 1
         db.commit()
         if sent:
-            logger.info(f'Weekly digest: sent {sent} emails')
+            logger.info(f'Summary scheduler: sent {sent} emails')
     finally:
         db.close()
 

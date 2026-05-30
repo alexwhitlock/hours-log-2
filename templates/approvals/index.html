@@ -47,9 +47,9 @@
 
 <!-- Desktop: table -->
 <div class="table-wrap desktop-only">
-  <table>
+  <table id="approvals-table">
     <thead>
-      <tr><th>Member</th><th>Date</th><th>Category</th><th>Hrs</th><th>Description</th><th></th></tr>
+      <tr><th data-col="0">Member</th><th data-col="1">Date</th><th data-col="2">Category</th><th data-col="3">Hrs</th><th data-col="4">Description</th><th></th></tr>
     </thead>
     <tbody id="approvals-body">
       {% for r in records %}
@@ -83,5 +83,8 @@
 
 {% endblock %}
 {% block scripts %}
-<script>tableFilter('approvals-search', 'approvals-body', 'approvals-cards');</script>
+<script>
+initTableSort('approvals-table');
+tableFilter('approvals-search', 'approvals-body', 'approvals-cards');
+</script>
 {% endblock %}

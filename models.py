@@ -74,6 +74,7 @@ class D4HHours(Base):
 class NotifyPref(str, enum.Enum):
     off = 'off'
     realtime = 'realtime'
+    daily = 'daily'
     weekly = 'weekly'
 
 

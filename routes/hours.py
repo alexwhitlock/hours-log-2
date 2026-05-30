@@ -129,9 +129,9 @@ def save_notifications():
     user = db.get(User, session['user_id'])
     pref = request.form.get('notify_approval', 'off')
     pref_pending = request.form.get('notify_pending', 'off')
-    if pref in ('off', 'realtime', 'weekly'):
+    if pref in ('off', 'realtime', 'daily', 'weekly'):
         user.notify_approval = NotifyPref(pref)
-    if pref_pending in ('off', 'realtime', 'weekly'):
+    if pref_pending in ('off', 'realtime', 'daily', 'weekly'):
         user.notify_pending = NotifyPref(pref_pending)
     db.commit()
     flash('Notification preferences saved.')
