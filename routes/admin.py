@@ -472,40 +472,58 @@ def remove_assignment(assignment_id):
 @admin_bp.route('/admin/roles/<int:role_id>/generate', methods=['POST'])
 @require_role('admin')
 def generate_role_hours(role_id):
-    """Manually trigger generation for a specific role (for testing / catch-up)."""
-    from role_hours import generate_monthly_role_hours
-    from unittest.mock import patch
+    """Generate records from each assignment's start_date up to today, backfilling any missing months."""
     import calendar
-    db = get_db()
-    # Allow manual trigger regardless of date
-    from models import HoursRecord, RecordStatus, AdminRoleAssignment
     from datetime import datetime as dt
+    from sqlalchemy import extract
+    from models import HoursRecord, RecordStatus, AdminRoleAssignment
+
+    db = get_db()
     today = date.today()
     assignments = [a for a in db.query(AdminRoleAssignment).filter_by(
         admin_role_id=role_id).all()
-        if (a.end_date is None or a.end_date >= today) and a.start_date <= today]
-    from sqlalchemy import extract
+        if a.start_date <= today]
+
     generated = 0
     for a in assignments:
-        existing = db.query(HoursRecord).filter(
-            HoursRecord.auto_role_assignment_id == a.id,
-            extract('year', HoursRecord.date) == today.year,
-            extract('month', HoursRecord.date) == today.month,
-        ).first()
-        if existing:
-            continue
         role = a.admin_role
-        db.add(HoursRecord(
-            user_id=a.user_id,
-            category_id=role.category_id,
-            date=today,
-            hours=role.monthly_hours,
-            description=f'Auto: {role.name}',
-            status=RecordStatus.approved,
-            approved_at=dt.now(),
-            auto_role_assignment_id=a.id,
-        ))
-        generated += 1
+        # Walk every month from start_date to today
+        cur_year, cur_month = a.start_date.year, a.start_date.month
+        while (cur_year, cur_month) <= (today.year, today.month):
+            existing = db.query(HoursRecord).filter(
+                HoursRecord.auto_role_assignment_id == a.id,
+                extract('year',  HoursRecord.date) == cur_year,
+                extract('month', HoursRecord.date) == cur_month,
+            ).first()
+            if not existing:
+                # Use last day of the month, except current month uses today
+                if (cur_year, cur_month) == (today.year, today.month):
+                    record_date = today
+                else:
+                    last_day = calendar.monthrange(cur_year, cur_month)[1]
+                    record_date = date(cur_year, cur_month, last_day)
+
+                # Only generate if within the assignment's active period
+                if a.end_date is None or a.end_date >= record_date:
+                    db.add(HoursRecord(
+                        user_id=a.user_id,
+                        category_id=role.category_id,
+                        date=record_date,
+                        hours=role.monthly_hours,
+                        description=f'Auto: {role.name}',
+                        status=RecordStatus.approved,
+                        approved_at=dt.now(),
+                        auto_role_assignment_id=a.id,
+                    ))
+                    generated += 1
+
+            # Advance to next month
+            if cur_month == 12:
+                cur_year += 1
+                cur_month = 1
+            else:
+                cur_month += 1
+
     db.commit()
-    flash(f'Generated {generated} record{"s" if generated != 1 else ""} for this month.')
+    flash(f'Generated {generated} record{"s" if generated != 1 else ""} (backfill included).')
     return redirect(url_for('admin.roles'))
