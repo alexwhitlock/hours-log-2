@@ -68,8 +68,8 @@ def run_migrations() -> None:
             )).fetchone()
             if not exists:
                 conn.execute(sql(
-                    f"INSERT INTO categories (name, hour_type, is_active, is_system) "
-                    f"VALUES ('System: {ht.capitalize()}', '{ht}', 1, 1)"
+                    f"INSERT INTO categories (name, hour_type, is_active, is_system, created_at) "
+                    f"VALUES ('System: {ht.capitalize()}', '{ht}', 1, 1, datetime('now'))"
                 ))
 
         # Seed default settings if not present
