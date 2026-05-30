@@ -307,6 +307,9 @@ def _run_sync_background(config: dict) -> None:
     db = _Session()
     try:
         result = sync_all(config, db, progress=_progress)
+        # Strip the non-serialisable set before storing in status
+        if 'members' in result and 'changed_member_ids' in result['members']:
+            del result['members']['changed_member_ids']
         logger.info('Sync complete — starting submission step')
         _progress('submit', 'Submitting approved hours to D4H…', 98)
         try:
