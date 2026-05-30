@@ -292,7 +292,6 @@
 </nav>
 {% endif %}
 
-{% block scripts %}{% endblock %}
 <script>
 function initTableSort(tableId) {
   const table = document.getElementById(tableId);
@@ -347,5 +346,6 @@ function tableFilter(inputId, tableBodyId, cardsId) {
   });
 }
 </script>
+{% block scripts %}{% endblock %}
 </body>
 </html>
