@@ -76,6 +76,8 @@ def _fetch_tagged_activities(config: dict, tag_id: int, atype: str) -> dict:
             break
         for a in batch:
             if (a.get('startsAt') or '') >= SYNC_START_DATE:
+                if not a.get('approved', True):
+                    continue
                 result[a['id']] = {
                     'hour_type': hour_type,
                     'name': (a.get('referenceDescription') or a.get('title')
