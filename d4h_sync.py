@@ -153,16 +153,18 @@ def _fetch_member_attendance(config: dict, member_id: int, tag_cache: dict,
                     continue
                 activity = rec.get('activity') or {}
                 activity_id = activity.get('id')
-                if not activity_id or activity_id not in tag_cache:
+                if not activity_id:
                     continue
                 if submission_event_ids and activity_id in submission_event_ids:
                     continue
+                cached = tag_cache.get(activity_id)
                 records.append({
                     'attendance_id': rec['id'],
                     'activity_id': activity_id,
                     'activity_type': activity.get('resourceType', '').lower().rstrip('s'),
-                    'hour_type': tag_cache[activity_id]['hour_type'],
-                    'activity_name': tag_cache[activity_id]['name'],
+                    'hour_type': cached['hour_type'] if cached else 'other',
+                    'activity_name': cached['name'] if cached else (
+                        activity.get('referenceDescription') or str(activity_id)),
                     'date': starts,
                     'hours': round((rec.get('duration') or 0) / 60, 2),
                 })
