@@ -43,9 +43,9 @@ class D4HMember(Base):
     status = Column(String(32), nullable=False, default='Operational')
     count_rolling_hours = Column(Integer, nullable=True)
     last_synced_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow,
-                        onupdate=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now,
+                        onupdate=datetime.now)
 
     user = relationship('User', back_populates='d4h_member', uselist=False)
     d4h_hours = relationship('D4HHours', back_populates='d4h_member')
@@ -67,7 +67,7 @@ class D4HHours(Base):
     hour_type = Column(SQLEnum(HourType, native_enum=False), nullable=False, default=HourType.none)
     date = Column(Date, nullable=False)
     hours = Column(Numeric(6, 2), nullable=False)
-    synced_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    synced_at = Column(DateTime, nullable=False, default=datetime.now)
 
     d4h_member = relationship('D4HMember', back_populates='d4h_hours')
 
@@ -111,7 +111,7 @@ class Category(Base):
     d4h_tag_id = Column(Integer, nullable=True)
     hour_type = Column(SQLEnum(HourType, native_enum=False), nullable=False, default=HourType.none)
     is_active = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
 
 
 class HoursRecord(Base):
@@ -151,7 +151,7 @@ class RecordHistory(Base):
     record_id = Column(Integer, ForeignKey('hours_records.id'), nullable=False)
     action = Column(String(64), nullable=False)
     performed_by = Column(Integer, ForeignKey('users.id'), nullable=False)
-    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
+    timestamp = Column(DateTime, nullable=False, default=datetime.now)
     changes = Column(JSON, nullable=True)
 
     record = relationship('HoursRecord', back_populates='history')
