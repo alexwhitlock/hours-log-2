@@ -40,18 +40,23 @@ def close_db(e=None) -> None:
 def run_migrations() -> None:
     """Add columns that may not exist in an older database."""
     new_columns = [
-        ('users', 'notify_approval', "TEXT NOT NULL DEFAULT 'off'"),
-        ('users', 'notify_pending',  "TEXT NOT NULL DEFAULT 'off'"),
+        ('users', 'notify_approval', "TEXT NOT NULL DEFAULT 'weekly'"),
+        ('users', 'notify_pending',  "TEXT NOT NULL DEFAULT 'weekly'"),
         ('users', 'last_weekly_sent', 'DATETIME'),
+        ('users', 'notify_monthly_summary', 'INTEGER NOT NULL DEFAULT 0'),
+        ('users', 'notify_tax_credit', 'INTEGER NOT NULL DEFAULT 1'),
+        ('users', 'tax_credit_notified_year', 'INTEGER'),
         ('hours_records', 'auto_role_assignment_id', 'INTEGER REFERENCES admin_role_assignments(id)'),
         ('hours_records', 'd4h_needs_resync', 'INTEGER NOT NULL DEFAULT 0'),
     ]
+    sql = __import__('sqlalchemy').text
     with _engine.connect() as conn:
         for table, col, col_def in new_columns:
-            existing = [r[1] for r in conn.execute(
-                __import__('sqlalchemy').text(f'PRAGMA table_info({table})')
-            )]
+            existing = [r[1] for r in conn.execute(sql(f'PRAGMA table_info({table})'))]
             if col not in existing:
-                conn.execute(__import__('sqlalchemy').text(
-                    f'ALTER TABLE {table} ADD COLUMN {col} {col_def}'
-                ))
+                conn.execute(sql(f'ALTER TABLE {table} ADD COLUMN {col} {col_def}'))
+
+        # Set new defaults on existing users who still have old 'off' values
+        conn.execute(sql("UPDATE users SET notify_approval = 'weekly' WHERE notify_approval = 'off'"))
+        conn.execute(sql("UPDATE users SET notify_pending  = 'weekly' WHERE notify_pending  = 'off'"))
+        conn.commit()

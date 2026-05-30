@@ -147,6 +147,26 @@
       </div>
     </div>
     {% endif %}
+    <div class="field" style="margin-bottom:14px">
+      <label>Monthly hours progress summary</label>
+      <div style="margin-top:6px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:0.9rem;font-weight:400;cursor:pointer">
+          <input type="checkbox" name="notify_monthly_summary" value="1"
+                 {% if user.notify_monthly_summary %}checked{% endif %}>
+          Send me a summary email on the 1st of each month
+        </label>
+      </div>
+    </div>
+    <div class="field" style="margin-bottom:14px">
+      <label>Tax credit eligibility</label>
+      <div style="margin-top:6px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:0.9rem;font-weight:400;cursor:pointer">
+          <input type="checkbox" name="notify_tax_credit" value="1"
+                 {% if user.notify_tax_credit %}checked{% endif %}>
+          Notify me when I reach tax credit eligibility (200+ hrs, primary &gt; secondary)
+        </label>
+      </div>
+    </div>
     <button type="submit" class="btn btn-sm">Save Preferences</button>
   </form>
 </div>

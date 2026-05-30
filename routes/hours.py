@@ -160,6 +160,8 @@ def save_notifications():
         user.notify_approval = NotifyPref(pref)
     if pref_pending in ('off', 'realtime', 'daily', 'weekly'):
         user.notify_pending = NotifyPref(pref_pending)
+    user.notify_monthly_summary = bool(request.form.get('notify_monthly_summary'))
+    user.notify_tax_credit = bool(request.form.get('notify_tax_credit'))
     db.commit()
     flash('Notification preferences saved.')
     return redirect(url_for('hours.profile'))

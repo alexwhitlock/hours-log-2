@@ -151,12 +151,15 @@ def _start_weekly_scheduler(app: 'Flask') -> None:
             try:
                 _send_summaries(app)
                 _run_role_hours()
-                # D4H submission at 3am
+                # 3am jobs
                 now = _dt.now()
                 if now.hour == 3 and last_submission_date != now.date():
                     with app.app_context():
                         _run_d4h_submission(app.config['D4H_CONFIG'])
                     last_submission_date = now.date()
+                    # Monthly progress summary on the 1st of each month
+                    if now.day == 1:
+                        _send_monthly_progress_summaries(app)
             except Exception:
                 logger.exception('Scheduler error')
 
@@ -174,6 +177,45 @@ def _run_d4h_submission(config: dict) -> None:
         logger.info(f'D4H nightly submission complete: {result}')
     except Exception:
         logger.exception('D4H nightly submission error')
+    finally:
+        db.close()
+
+
+def _send_monthly_progress_summaries(app) -> None:
+    from datetime import datetime, timedelta
+    from db import _Session
+    from models import User, HoursRecord, RecordStatus, D4HHours
+    from mail import send_monthly_progress
+    from d4h_sync import hours_by_year
+
+    # Summarise the previous month
+    today = datetime.now().date()
+    first_of_this_month = today.replace(day=1)
+    last_month = first_of_this_month - timedelta(days=1)
+    year, month = last_month.year, last_month.month
+    month_name = last_month.strftime('%B %Y')
+
+    db = _Session()
+    try:
+        users = db.query(User).filter(
+            User.is_active == True,
+            User.notify_monthly_summary == True,
+        ).all()
+        for user in users:
+            d4h_hours = db.query(D4HHours).filter_by(
+                d4h_member_id=user.d4h_member_id).all() if user.d4h_member_id else []
+            tool_records = db.query(HoursRecord).filter_by(user_id=user.id).all()
+            summary = hours_by_year(d4h_hours, tool_records, year)
+            send_monthly_progress(
+                user.email, user.display_name, month_name,
+                float(summary['tax_credit']),
+                float(summary['primary']),
+                float(summary['secondary']),
+                float(summary['other']),
+                float(summary['total']),
+            )
+        if users:
+            logger.info(f'Monthly progress summaries sent to {len(users)} users')
     finally:
         db.close()
 
