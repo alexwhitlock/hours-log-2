@@ -55,16 +55,24 @@ def callback():
 
     google_sub = info['sub']
     display_name = info.get('name', email)
-    username = email.split('@')[0]
+    google_username = email.split('@')[0]
 
     db = get_db()
     user = db.query(User).filter_by(google_sub=google_sub).first()
 
     if not user:
+        # Try to find by username (pre-created from D4H sync)
+        user = db.query(User).filter_by(username=google_username.lower()).first()
+        if user:
+            user.google_sub = google_sub
+            user.email = email
+            db.commit()
+
+    if not user:
         user = User(
             google_sub=google_sub,
             email=email,
-            username=username,
+            username=google_username,
             display_name=display_name,
             role=UserRole.member,
         )
@@ -79,7 +87,7 @@ def callback():
     if not user.d4h_member_id:
         from models import D4HMember
         d4h_member = db.query(D4HMember).filter_by(
-            google_username=username.lower()).first()
+            google_username=google_username.lower()).first()
         if d4h_member:
             user.d4h_member_id = d4h_member.id
 

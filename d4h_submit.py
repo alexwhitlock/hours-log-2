@@ -54,7 +54,8 @@ def _get_or_create_event(db, client, year: int, month: int, hour_type: str):
 def _push_group(db, client, records: list, year: int, month: int,
                 hour_type: str) -> bool:
     """Create or PATCH the attendance record for one member+type+month group.
-    Returns True on success, False on failure (sets d4h_needs_resync on all)."""
+    Returns True on success, False on failure (sets d4h_needs_resync on all).
+    records is a list of HoursRecord objects."""
     from models import RecordStatus
 
     member_d4h_id = next(
@@ -65,7 +66,8 @@ def _push_group(db, client, records: list, year: int, month: int,
         logger.warning(f'D4H submit: no D4H member ID for user {records[0].user_id}')
         return False
 
-    total_hours = sum(float(r.hours) for r in records)
+    # Total hours from associated entries
+    total_hours = sum(float(r.entry.hours) for r in records if r.entry)
 
     try:
         existing_att_id = next(
@@ -83,8 +85,10 @@ def _push_group(db, client, records: list, year: int, month: int,
 
         for r in records:
             r.d4h_record_id = att_id
-            r.status = RecordStatus.submitted
             r.d4h_needs_resync = False
+            # Mark the entry as submitted
+            if r.entry:
+                r.entry.status = RecordStatus.submitted
         db.commit()
         logger.info(
             f'D4H submit: {year}-{month:02d} {hour_type} '
@@ -108,27 +112,31 @@ def _push_group(db, client, records: list, year: int, month: int,
 def run_submission(db, config: dict) -> dict:
     """Push all approved/submitted records that need syncing to D4H.
     Called nightly at 3am and on-demand from admin page."""
-    from models import HoursRecord, RecordStatus
+    from models import HoursRecord, HoursEntry, RecordStatus
 
+    # Query HoursRecord joined to HoursEntry where entry.status in (approved, submitted)
     records = (
         db.query(HoursRecord)
-        .filter(HoursRecord.status.in_([RecordStatus.approved, RecordStatus.submitted]))
+        .join(HoursEntry, HoursRecord.entry_id == HoursEntry.id)
+        .filter(HoursEntry.status.in_([RecordStatus.approved, RecordStatus.submitted]))
         .all()
     )
 
     # Filter to submittable types with linked D4H members
     records = [
         r for r in records
-        if r.category
-        and r.category.hour_type.value in SUBMITTABLE_TYPES
+        if r.entry
+        and r.entry.category
+        and r.entry.category.hour_type.value in SUBMITTABLE_TYPES
         and r.user
         and r.user.d4h_member_id
     ]
 
-    # Group by (user_id, hour_type, year, month)
+    # Group by (user_id, hour_type, year, month) using entry metadata
     groups = defaultdict(list)
     for r in records:
-        key = (r.user_id, r.category.hour_type.value, r.date.year, r.date.month)
+        key = (r.user_id, r.entry.category.hour_type.value,
+               r.entry.date.year, r.entry.date.month)
         groups[key].append(r)
 
     client = _make_client(config)
@@ -154,17 +162,22 @@ def run_submission(db, config: dict) -> dict:
 def push_group_immediately(db, config: dict, user_id: int, hour_type: str,
                            year: int, month: int) -> bool:
     """Called immediately when an admin edits a submitted record."""
-    from models import HoursRecord, RecordStatus
+    from models import HoursRecord, HoursEntry, RecordStatus
 
     group = [
-        r for r in db.query(HoursRecord).filter(
-            HoursRecord.user_id == user_id,
-            HoursRecord.status.in_([RecordStatus.approved, RecordStatus.submitted]),
-        ).all()
-        if r.category
-        and r.category.hour_type.value == hour_type
-        and r.date.year == year
-        and r.date.month == month
+        r for r in (
+            db.query(HoursRecord)
+            .join(HoursEntry, HoursRecord.entry_id == HoursEntry.id)
+            .filter(
+                HoursRecord.user_id == user_id,
+                HoursEntry.status.in_([RecordStatus.approved, RecordStatus.submitted]),
+            ).all()
+        )
+        if r.entry
+        and r.entry.category
+        and r.entry.category.hour_type.value == hour_type
+        and r.entry.date.year == year
+        and r.entry.date.month == month
     ]
     if not group:
         return True
@@ -175,36 +188,46 @@ def push_group_immediately(db, config: dict, user_id: int, hour_type: str,
 # ── Handle delete of a submitted record ──────────────────────────────────────
 
 def handle_submitted_record_delete(db, config: dict, record) -> None:
-    """Called before deleting a submitted record. Patches or removes the D4H attendance."""
-    from models import HoursRecord, RecordStatus
-
+    """Called before deleting a HoursRecord that is part of a submitted entry.
+    Patches or removes the D4H attendance."""
     if not record.d4h_record_id:
         return
 
-    year  = record.date.year
-    month = record.date.month
-    hour_type = record.category.hour_type.value if record.category else None
+    entry = record.entry
+    if not entry:
+        return
+
+    year  = entry.date.year
+    month = entry.date.month
+    hour_type = entry.category.hour_type.value if entry.category else None
 
     if not hour_type or hour_type not in SUBMITTABLE_TYPES:
         return
 
+    from models import HoursRecord, HoursEntry, RecordStatus
+
     # Find remaining records in the group (excluding the one being deleted)
     remaining = [
-        r for r in db.query(HoursRecord).filter(
-            HoursRecord.user_id == record.user_id,
-            HoursRecord.status.in_([RecordStatus.approved, RecordStatus.submitted]),
-            HoursRecord.id != record.id,
-        ).all()
-        if r.category
-        and r.category.hour_type.value == hour_type
-        and r.date.year == year
-        and r.date.month == month
+        r for r in (
+            db.query(HoursRecord)
+            .join(HoursEntry, HoursRecord.entry_id == HoursEntry.id)
+            .filter(
+                HoursRecord.user_id == record.user_id,
+                HoursEntry.status.in_([RecordStatus.approved, RecordStatus.submitted]),
+                HoursRecord.id != record.id,
+            ).all()
+        )
+        if r.entry
+        and r.entry.category
+        and r.entry.category.hour_type.value == hour_type
+        and r.entry.date.year == year
+        and r.entry.date.month == month
     ]
 
     client = _make_client(config)
     try:
         if remaining:
-            total = sum(float(r.hours) for r in remaining)
+            total = sum(float(r.entry.hours) for r in remaining if r.entry)
             client.patch_submission_attendance(
                 int(record.d4h_record_id), total, year, month,
             )

@@ -5,17 +5,21 @@ from flask import (Blueprint, abort, flash, redirect, render_template, request,
 
 from auth import require_role
 from db import get_db
-from models import (Category, CategoryApprover, D4HHours, HoursRecord,
-                    RecordHistory, RecordStatus, NotifyPref, User, UserRole)
+from models import (Category, CategoryApprover, D4HHours, EntryHistory,
+                    HoursEntry, HoursRecord, RecordStatus, NotifyPref, User, UserRole)
 
 approvals_bp = Blueprint('approvals', __name__)
 
 
 def _push_to_d4h(db, record) -> None:
-    """Immediately push the approved record's group to D4H. Failures are flagged for retry."""
+    """Immediately push the approved record's group to D4H. Failures are flagged for retry.
+    record is a HoursRecord; metadata comes from record.entry."""
+    entry = record.entry
+    if not entry:
+        return
     if not record.user or not record.user.d4h_member_id:
         return
-    if not record.category or record.category.hour_type.value not in ('primary', 'secondary', 'other'):
+    if not entry.category or entry.category.hour_type.value not in ('primary', 'secondary', 'other'):
         return
     try:
         from flask import current_app
@@ -23,8 +27,8 @@ def _push_to_d4h(db, record) -> None:
         push_group_immediately(
             db, current_app.config['D4H_CONFIG'],
             record.user_id,
-            record.category.hour_type.value,
-            record.date.year, record.date.month,
+            entry.category.hour_type.value,
+            entry.date.year, entry.date.month,
         )
     except Exception as e:
         import logging
@@ -59,24 +63,24 @@ def _check_tax_credit_milestone(db, user):
 @require_role('approver')
 def index():
     db = get_db()
-    base_q = db.query(HoursRecord).filter_by(status=RecordStatus.pending)
+    base_q = db.query(HoursEntry).filter_by(status=RecordStatus.pending)
 
     if session.get('role') != 'admin':
         assigned = {a.category_id for a in db.query(CategoryApprover)
                     .filter_by(user_id=session['user_id']).all()}
-        base_q = base_q.filter(HoursRecord.category_id.in_(assigned))
+        base_q = base_q.filter(HoursEntry.category_id.in_(assigned))
 
-    records = base_q.order_by(HoursRecord.date.desc()).all()
-    return render_template('approvals/index.html', records=records)
+    entries = base_q.order_by(HoursEntry.date.desc()).all()
+    return render_template('approvals/index.html', entries=entries)
 
 
-@approvals_bp.route('/approvals/<int:record_id>/review', methods=['GET', 'POST'])
+@approvals_bp.route('/approvals/<int:entry_id>/review', methods=['GET', 'POST'])
 @require_role('approver')
-def review(record_id):
+def review(entry_id):
     db = get_db()
-    record = db.query(HoursRecord).filter_by(
-        id=record_id, status=RecordStatus.pending).first()
-    if not record:
+    entry = db.query(HoursEntry).filter_by(
+        id=entry_id, status=RecordStatus.pending).first()
+    if not entry:
         abort(404)
 
     categories = db.query(Category).filter(Category.is_active==True, Category.is_system==False).order_by(Category.name).all()
@@ -87,115 +91,120 @@ def review(record_id):
 
         # Apply any edits
         before = {
-            'date': str(record.date), 'hours': str(record.hours),
-            'description': record.description, 'category_id': record.category_id,
+            'date': str(entry.date), 'hours': str(entry.hours),
+            'description': entry.description, 'category_id': entry.category_id,
         }
-        record.category_id = int(request.form['category_id'])
-        record.date = date.fromisoformat(request.form['date'])
-        record.hours = float(request.form['hours'])
-        record.description = request.form.get('description', '').strip() or None
+        entry.category_id = int(request.form['category_id'])
+        entry.date = date.fromisoformat(request.form['date'])
+        entry.hours = float(request.form['hours'])
+        entry.description = request.form.get('description', '').strip() or None
         after = {
-            'date': str(record.date), 'hours': str(record.hours),
-            'description': record.description, 'category_id': record.category_id,
+            'date': str(entry.date), 'hours': str(entry.hours),
+            'description': entry.description, 'category_id': entry.category_id,
         }
         changed = before != after
 
         if action == 'approve':
-            record.status = RecordStatus.approved
-            record.approved_by = session['user_id']
-            record.approved_at = datetime.now()
-            db.add(RecordHistory(
-                record_id=record.id, action='approved',
+            entry.status = RecordStatus.approved
+            entry.approved_by = session['user_id']
+            entry.approved_at = datetime.now()
+            db.add(EntryHistory(
+                entry_id=entry.id, action='approved',
                 performed_by=session['user_id'],
                 changes={**(({'edits': {'before': before, 'after': after}} if changed else {})),
                          **({'comment': comment} if comment else {})},
             ))
             db.commit()
-            _push_to_d4h(db, record)
-            if record.user and record.user.notify_approval == NotifyPref.realtime:
-                from mail import notify_record_approved
-                notify_record_approved(record.user.email, record.user.display_name, record)
-            _check_tax_credit_milestone(db, record.user)
-            flash('Record approved.')
+            # Push each record in the entry to D4H
+            for record in entry.records:
+                _push_to_d4h(db, record)
+            # Send approval notifications
+            for record in entry.records:
+                if record.user and record.user.notify_approval == NotifyPref.realtime:
+                    from mail import notify_record_approved
+                    notify_record_approved(record.user.email, record.user.display_name, entry)
+                _check_tax_credit_milestone(db, record.user)
+            flash('Entry approved.')
 
         elif action == 'reject':
-            record.status = RecordStatus.rejected
-            db.add(RecordHistory(
-                record_id=record.id, action='rejected',
+            entry.status = RecordStatus.rejected
+            db.add(EntryHistory(
+                entry_id=entry.id, action='rejected',
                 performed_by=session['user_id'],
                 changes={**(({'edits': {'before': before, 'after': after}} if changed else {})),
                          **({'comment': comment} if comment else {})},
             ))
             db.commit()
-            if record.user and record.user.notify_approval == NotifyPref.realtime:
-                from mail import notify_record_rejected
-                notify_record_rejected(record.user.email, record.user.display_name,
-                                       record, comment or '')
-            flash('Record rejected.')
+            for record in entry.records:
+                if record.user and record.user.notify_approval == NotifyPref.realtime:
+                    from mail import notify_record_rejected
+                    notify_record_rejected(record.user.email, record.user.display_name,
+                                           entry, comment or '')
+            flash('Entry rejected.')
 
         return redirect(url_for('approvals.index'))
 
-    return render_template('approvals/review.html', record=record, categories=categories)
+    return render_template('approvals/review.html', entry=entry, categories=categories)
 
 
-@approvals_bp.route('/approvals/<int:record_id>/approve', methods=['POST'])
+@approvals_bp.route('/approvals/<int:entry_id>/approve', methods=['POST'])
 @require_role('approver')
-def approve(record_id):
+def approve(entry_id):
     """Quick approve from the list (no edit)."""
     db = get_db()
-    record = db.query(HoursRecord).filter_by(
-        id=record_id, status=RecordStatus.pending).first()
-    if not record:
+    entry = db.query(HoursEntry).filter_by(
+        id=entry_id, status=RecordStatus.pending).first()
+    if not entry:
         abort(404)
-    record.status = RecordStatus.approved
-    record.approved_by = session['user_id']
-    record.approved_at = datetime.now()
-    db.add(RecordHistory(
-        record_id=record.id, action='approved', performed_by=session['user_id']))
+    entry.status = RecordStatus.approved
+    entry.approved_by = session['user_id']
+    entry.approved_at = datetime.now()
+    db.add(EntryHistory(
+        entry_id=entry.id, action='approved', performed_by=session['user_id']))
     db.commit()
-    _push_to_d4h(db, record)
-    if record.user and record.user.notify_approval == NotifyPref.realtime:
-        from mail import notify_record_approved
-        notify_record_approved(record.user.email, record.user.display_name, record)
-    _check_tax_credit_milestone(db, record.user)
-    flash('Record approved.')
+    for record in entry.records:
+        _push_to_d4h(db, record)
+        if record.user and record.user.notify_approval == NotifyPref.realtime:
+            from mail import notify_record_approved
+            notify_record_approved(record.user.email, record.user.display_name, entry)
+        _check_tax_credit_milestone(db, record.user)
+    flash('Entry approved.')
     return redirect(url_for('approvals.index'))
 
 
-@approvals_bp.route('/approvals/<int:record_id>/delete', methods=['POST'])
+@approvals_bp.route('/approvals/<int:entry_id>/delete', methods=['POST'])
 @require_role('approver')
-def delete(record_id):
+def delete(entry_id):
     db = get_db()
-    record = db.query(HoursRecord).filter_by(
-        id=record_id, status=RecordStatus.pending).first()
-    if not record:
+    entry = db.query(HoursEntry).filter_by(
+        id=entry_id, status=RecordStatus.pending).first()
+    if not entry:
         abort(404)
-    from models import RecordHistory
-    db.query(RecordHistory).filter_by(record_id=record_id).delete()
-    db.delete(record)
+    db.delete(entry)  # cascades to records and history
     db.commit()
-    flash('Record deleted.')
+    flash('Entry deleted.')
     return redirect(url_for('approvals.index'))
 
 
-@approvals_bp.route('/approvals/<int:record_id>/reject', methods=['POST'])
+@approvals_bp.route('/approvals/<int:entry_id>/reject', methods=['POST'])
 @require_role('approver')
-def reject(record_id):
+def reject(entry_id):
     """Quick reject from the list (no edit)."""
     db = get_db()
-    record = db.query(HoursRecord).filter_by(
-        id=record_id, status=RecordStatus.pending).first()
-    if not record:
+    entry = db.query(HoursEntry).filter_by(
+        id=entry_id, status=RecordStatus.pending).first()
+    if not entry:
         abort(404)
     reason = request.form.get('reason', '').strip()
-    record.status = RecordStatus.rejected
-    db.add(RecordHistory(
-        record_id=record.id, action='rejected', performed_by=session['user_id'],
+    entry.status = RecordStatus.rejected
+    db.add(EntryHistory(
+        entry_id=entry.id, action='rejected', performed_by=session['user_id'],
         changes={'comment': reason or None},
     ))
     db.commit()
-    if record.user and record.user.notify_approval == NotifyPref.realtime:
-        from mail import notify_record_rejected
-        notify_record_rejected(record.user.email, record.user.display_name, record, reason)
-    flash('Record rejected.')
+    for record in entry.records:
+        if record.user and record.user.notify_approval == NotifyPref.realtime:
+            from mail import notify_record_rejected
+            notify_record_rejected(record.user.email, record.user.display_name, entry, reason)
+    flash('Entry rejected.')
     return redirect(url_for('approvals.index'))

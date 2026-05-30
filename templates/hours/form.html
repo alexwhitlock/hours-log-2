@@ -1,19 +1,19 @@
 {% extends 'base.html' %}
-{% block title %}{{ 'Edit Record' if record else 'Log Hours' }}{% endblock %}
+{% block title %}{{ 'Edit Entry' if entry else 'Log Hours' }}{% endblock %}
 {% block content %}
 
 <div class="page-header">
-  <h1>{{ 'Edit Record' if record else 'Log Hours' }}</h1>
+  <h1>{{ 'Edit Entry' if entry else 'Log Hours' }}</h1>
   <a href="/hours" class="btn btn-outline"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="vertical-align:-2px"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Cancel</a>
 </div>
 
 <div class="card">
-  <form method="POST">
+  <form method="POST" id="hours-form">
 
     <div class="field">
       <label for="date">Date</label>
       <input type="date" name="date" id="date" required
-             value="{{ record.date.isoformat() if record else today }}"
+             value="{{ entry.date.isoformat() if entry else today }}"
              max="{{ today }}">
     </div>
 
@@ -21,7 +21,7 @@
       <label for="hours">Hours</label>
       <input type="number" name="hours" id="hours" required
              min="0.25" max="24" step="0.25"
-             value="{{ '%.2f'|format(record.hours|float) if record else '' }}"
+             value="{{ '%.2f'|format(entry.hours|float) if entry else '' }}"
              placeholder="e.g. 2.5"
              inputmode="decimal">
       <p class="field-hint">Enter in 0.25-hour increments.</p>
@@ -32,7 +32,7 @@
       <select name="category_id" id="category_id" required>
         <option value="">— Select a category —</option>
         {% for cat in categories %}
-        <option value="{{ cat.id }}" {% if record and record.category_id == cat.id %}selected{% endif %}>
+        <option value="{{ cat.id }}" {% if entry and entry.category_id == cat.id %}selected{% endif %}>
           {{ cat.name }}
         </option>
         {% endfor %}
@@ -45,7 +45,19 @@
     <div class="field">
       <label for="description">Description <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
       <textarea name="description" id="description"
-                placeholder="Brief description of the work done">{{ record.description or '' }}</textarea>
+                placeholder="Brief description of the work done">{{ entry.description or '' }}</textarea>
+    </div>
+
+    <div class="field">
+      <label>For</label>
+      <div id="members-selected" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
+      <select id="member-add-select" style="width:auto;max-width:100%">
+        <option value="">— add person —</option>
+        {% for u in all_members %}
+        <option value="{{ u.id }}" data-name="{{ u.display_name }}">{{ u.display_name }}</option>
+        {% endfor %}
+      </select>
+      <div id="members-hidden"></div>
     </div>
 
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
@@ -60,4 +72,59 @@
   </form>
 </div>
 
+{% endblock %}
+{% block scripts %}
+<script>
+(function() {
+  var selected = {};
+  var hiddenDiv = document.getElementById('members-hidden');
+  var pillsDiv  = document.getElementById('members-selected');
+  var addSelect = document.getElementById('member-add-select');
+
+  function renderPills() {
+    pillsDiv.innerHTML = '';
+    hiddenDiv.innerHTML = '';
+    Object.entries(selected).forEach(function([id, name]) {
+      // hidden input
+      var inp = document.createElement('input');
+      inp.type = 'hidden'; inp.name = 'user_ids'; inp.value = id;
+      hiddenDiv.appendChild(inp);
+      // pill
+      var pill = document.createElement('span');
+      pill.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:var(--accent-light,#e8f0fe);color:var(--accent,#1a73e8);border-radius:999px;padding:3px 10px;font-size:0.82rem;font-weight:600';
+      pill.textContent = name;
+      // remove button
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = '×';
+      btn.style.cssText = 'background:none;border:none;cursor:pointer;font-size:1rem;line-height:1;padding:0 0 0 2px;color:inherit;opacity:.6';
+      (function(uid) { btn.onclick = function() { delete selected[uid]; renderPills(); }; })(id);
+      pill.appendChild(btn);
+      pillsDiv.appendChild(pill);
+    });
+  }
+
+  // Pre-select current user (always present)
+  var currentUserId = '{{ current_user_id }}';
+  {% if entry %}
+  // For edit: pre-populate with existing record users
+  {% for r in entry.records %}
+  selected['{{ r.user_id }}'] = '{% for u in all_members %}{% if u.id == r.user_id %}{{ u.display_name }}{% endif %}{% endfor %}';
+  {% endfor %}
+  {% else %}
+  // New form: default to current user
+  {% for u in all_members %}{% if u.id == current_user_id %}selected['{{ current_user_id }}'] = '{{ u.display_name }}';{% endif %}{% endfor %}
+  {% endif %}
+  renderPills();
+
+  addSelect.addEventListener('change', function() {
+    var id = addSelect.value;
+    if (!id) return;
+    var name = addSelect.options[addSelect.selectedIndex].dataset.name;
+    selected[id] = name;
+    addSelect.value = '';
+    renderPills();
+  });
+})();
+</script>
 {% endblock %}

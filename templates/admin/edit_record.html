@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
-{% block title %}Edit Record{% endblock %}
+{% block title %}Edit Entry{% endblock %}
 {% block content %}
 
 <div class="page-header">
-  <h1>Edit Record</h1>
+  <h1>Edit Entry</h1>
   <a href="/admin/records" class="btn btn-outline btn-sm">
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="vertical-align:-2px"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     Back
@@ -11,16 +11,21 @@
 </div>
 
 <div class="card">
-  <div class="card-title">{{ record.user.display_name }}</div>
+  <div class="card-title">
+    {{ entry.submitter.display_name }}
+    {% if entry.records|length > 1 %}
+    <span style="font-size:0.82rem;font-weight:400;color:var(--muted)"> + {{ entry.records|length - 1 }} other(s)</span>
+    {% endif %}
+  </div>
   <form method="POST">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
       <div class="field" style="margin-bottom:0">
         <label for="date">Date</label>
-        <input type="date" name="date" id="date" value="{{ record.date.isoformat() }}" required>
+        <input type="date" name="date" id="date" value="{{ entry.date.isoformat() }}" required>
       </div>
       <div class="field" style="margin-bottom:0">
         <label for="hours">Hours</label>
-        <input type="number" name="hours" id="hours" value="{{ record.hours }}"
+        <input type="number" name="hours" id="hours" value="{{ entry.hours }}"
                step="0.25" min="0.25" max="24" required>
       </div>
     </div>
@@ -28,7 +33,7 @@
       <label for="category_id">Category</label>
       <select name="category_id" id="category_id" required>
         {% for cat in categories %}
-        <option value="{{ cat.id }}" {% if cat.id == record.category_id %}selected{% endif %}>
+        <option value="{{ cat.id }}" {% if cat.id == entry.category_id %}selected{% endif %}>
           {{ cat.name }} ({{ cat.hour_type.value }})
         </option>
         {% endfor %}
@@ -36,13 +41,13 @@
     </div>
     <div class="field">
       <label for="description">Description</label>
-      <textarea name="description" id="description">{{ record.description or '' }}</textarea>
+      <textarea name="description" id="description">{{ entry.description or '' }}</textarea>
     </div>
     <div class="field">
       <label for="status">Status</label>
       <select name="status" id="status">
         {% for s in statuses %}
-        <option value="{{ s.value }}" {% if s == record.status %}selected{% endif %}>{{ s.value|capitalize }}</option>
+        <option value="{{ s.value }}" {% if s == entry.status %}selected{% endif %}>{{ s.value|capitalize }}</option>
         {% endfor %}
       </select>
     </div>

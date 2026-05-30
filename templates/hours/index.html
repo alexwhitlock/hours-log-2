@@ -14,33 +14,35 @@
   <a href="/hours/new" class="btn">+ New Entry</a>
 </div>
 
-{% if records %}
+{% if entries %}
 <input type="search" id="hours-search" placeholder="Search category or description…"
        style="width:100%;margin-bottom:10px">
 
 <!-- Mobile: cards -->
 <div class="mobile-only" id="hours-cards">
-  {% for r in records %}
-  <div class="record-card" data-search="{{ r.category.name|lower }} {{ (r.description or '')|lower }} {{ r.status.value }}">
+  {% for e in entries %}
+  {% set num_people = entry_record_map.get(e.id, [])|length %}
+  <div class="record-card" data-search="{{ e.category.name|lower }} {{ (e.description or '')|lower }} {{ e.status.value }}">
     <div class="record-card-top">
       <div>
-        <div class="record-card-meta">{{ r.date.strftime('%B %d, %Y') }}</div>
-        <div class="record-card-cat">{{ r.category.name }}</div>
-        {% if r.description %}<div class="record-card-desc" style="margin-top:4px">{{ r.description }}</div>{% endif %}
+        <div class="record-card-meta">{{ e.date.strftime('%B %d, %Y') }}</div>
+        <div class="record-card-cat">{{ e.category.name }}</div>
+        {% if e.description %}<div class="record-card-desc" style="margin-top:4px">{{ e.description }}</div>{% endif %}
+        {% if num_people > 1 %}<div style="font-size:0.78rem;color:var(--muted);margin-top:2px">for {{ num_people }} people</div>{% endif %}
       </div>
       <div style="text-align:right">
-        <div class="record-card-hours">{{ '%.1f'|format(r.hours|float) }} hrs</div>
-        <span class="badge badge-{{ r.status.value }}">{{ r.status.value }}</span>
+        <div class="record-card-hours">{{ '%.1f'|format(e.hours|float) }} hrs</div>
+        <span class="badge badge-{{ e.status.value }}">{{ e.status.value }}</span>
       </div>
     </div>
     <div class="record-card-actions">
-      {% if r.status.value in ('draft', 'pending') %}<a href="/hours/{{ r.id }}/edit" class="btn btn-outline btn-sm">Edit</a>{% endif %}
-      {% if r.status.value in ('draft', 'pending') %}
-      <form method="POST" action="/hours/{{ r.id }}/delete" onsubmit="return confirm('Delete this record?')">
+      {% if e.status.value in ('draft', 'pending') and e.submitted_by == current_user_id %}<a href="/hours/{{ e.id }}/edit" class="btn btn-outline btn-sm">Edit</a>{% endif %}
+      {% if e.status.value in ('draft', 'pending') and e.submitted_by == current_user_id %}
+      <form method="POST" action="/hours/{{ e.id }}/delete" onsubmit="return confirm('Delete this entry?')">
         <button type="submit" class="btn btn-red btn-sm">Delete</button>
       </form>
       {% endif %}
-      <a href="/hours/{{ r.id }}/history" class="btn btn-grey btn-sm">History</a>
+      <a href="/hours/{{ e.id }}/history" class="btn btn-grey btn-sm">History</a>
     </div>
   </div>
   {% endfor %}
@@ -50,24 +52,26 @@
 <div class="table-wrap desktop-only">
   <table id="hours-table">
     <thead>
-      <tr><th data-col="0">Date</th><th data-col="1">Category</th><th data-col="2">Hours</th><th data-col="3">Description</th><th data-col="4">Status</th><th></th></tr>
+      <tr><th data-col="0">Date</th><th data-col="1">Category</th><th data-col="2">Hours</th><th data-col="3">Description</th><th data-col="4">For</th><th data-col="5">Status</th><th></th></tr>
     </thead>
     <tbody id="hours-body">
-      {% for r in records %}
-      <tr data-search="{{ r.category.name|lower }} {{ (r.description or '')|lower }} {{ r.status.value }}">
-        <td style="white-space:nowrap">{{ r.date.strftime('%b %d, %Y') }}</td>
-        <td>{{ r.category.name }}</td>
-        <td style="font-weight:600">{{ '%.1f'|format(r.hours|float) }}</td>
-        <td style="font-size:0.85rem">{{ r.description or '—' }}</td>
-        <td><span class="badge badge-{{ r.status.value }}">{{ r.status.value }}</span></td>
+      {% for e in entries %}
+      {% set num_people = entry_record_map.get(e.id, [])|length %}
+      <tr data-search="{{ e.category.name|lower }} {{ (e.description or '')|lower }} {{ e.status.value }}">
+        <td style="white-space:nowrap">{{ e.date.strftime('%b %d, %Y') }}</td>
+        <td>{{ e.category.name }}</td>
+        <td style="font-weight:600">{{ '%.1f'|format(e.hours|float) }}</td>
+        <td style="font-size:0.85rem">{{ e.description or '—' }}</td>
+        <td style="font-size:0.85rem">{% if num_people > 1 %}{{ num_people }} people{% else %}me{% endif %}</td>
+        <td><span class="badge badge-{{ e.status.value }}">{{ e.status.value }}</span></td>
         <td style="white-space:nowrap">
-          {% if r.status.value in ('draft', 'pending') %}<a href="/hours/{{ r.id }}/edit" class="btn btn-outline btn-sm">Edit</a>{% endif %}
-          {% if r.status.value in ('draft', 'pending') %}
-          <form method="POST" action="/hours/{{ r.id }}/delete" style="display:inline" onsubmit="return confirm('Delete this record?')">
+          {% if e.status.value in ('draft', 'pending') and e.submitted_by == current_user_id %}<a href="/hours/{{ e.id }}/edit" class="btn btn-outline btn-sm">Edit</a>{% endif %}
+          {% if e.status.value in ('draft', 'pending') and e.submitted_by == current_user_id %}
+          <form method="POST" action="/hours/{{ e.id }}/delete" style="display:inline" onsubmit="return confirm('Delete this entry?')">
             <button type="submit" class="btn btn-red btn-sm">Delete</button>
           </form>
           {% endif %}
-          <a href="/hours/{{ r.id }}/history" class="btn btn-grey btn-sm">History</a>
+          <a href="/hours/{{ e.id }}/history" class="btn btn-grey btn-sm">History</a>
         </td>
       </tr>
       {% endfor %}

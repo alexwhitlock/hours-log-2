@@ -4,15 +4,16 @@
 <style>
   @media (max-width: 640px) { .desktop-only { display: none !important; } }
   @media (min-width: 641px) { .mobile-only  { display: none !important; } }
+  .people-pill { display:inline-block;background:var(--accent-light,#e8f0fe);color:var(--accent,#1a73e8);border-radius:999px;padding:2px 8px;font-size:0.75rem;font-weight:600;margin:1px 2px; }
 </style>
 {% endblock %}
 {% block container_class %}wide{% endblock %}
 {% block content %}
 
 <div class="page-header">
-  <h1>All Hours Log Records</h1>
+  <h1>All Hours Log Entries</h1>
   <div style="display:flex;align-items:center;gap:10px">
-    <span style="font-size:0.85rem;color:var(--muted);font-weight:600">{{ records|length }} shown</span>
+    <span style="font-size:0.85rem;color:var(--muted);font-weight:600">{{ entries|length }} shown</span>
     <a href="/admin" class="btn btn-outline btn-sm"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="vertical-align:-2px"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Admin</a>
   </div>
 </div>
@@ -34,26 +35,29 @@
   </div>
 </div>
 
-{% if records %}
+{% if entries %}
 
 <!-- Mobile: cards -->
 <div class="mobile-only" id="records-cards">
-  {% for r in records %}
-  <div class="record-card" data-search="{{ r.user.display_name|lower }} {{ r.category.name|lower }} {{ (r.description or '')|lower }} {{ r.status.value }}">
+  {% for e in entries %}
+  <div class="record-card" data-search="{{ e.submitter.display_name|lower }} {{ e.category.name|lower }} {{ (e.description or '')|lower }} {{ e.status.value }}">
     <div class="record-card-top">
       <div>
-        <div class="record-card-meta">{{ r.user.display_name }} · {{ r.date.strftime('%b %d, %Y') }}</div>
-        <div class="record-card-cat">{{ r.category.name }}</div>
-        {% if r.description %}<div class="record-card-desc" style="margin-top:4px">{{ r.description }}</div>{% endif %}
+        <div class="record-card-meta">{{ e.submitter.display_name }} · {{ e.date.strftime('%b %d, %Y') }}</div>
+        <div class="record-card-cat">{{ e.category.name }}</div>
+        {% if e.description %}<div class="record-card-desc" style="margin-top:4px">{{ e.description }}</div>{% endif %}
+        {% if e.records|length > 1 %}
+        <div style="margin-top:4px">{% for r in e.records %}<span class="people-pill">{{ r.user.display_name }}</span>{% endfor %}</div>
+        {% endif %}
       </div>
       <div style="text-align:right">
-        <div class="record-card-hours">{{ '%.1f'|format(r.hours|float) }} hrs</div>
-        <span class="badge badge-{{ r.status.value }}">{{ r.status.value }}</span>
+        <div class="record-card-hours">{{ '%.1f'|format(e.hours|float) }} hrs</div>
+        <span class="badge badge-{{ e.status.value }}">{{ e.status.value }}</span>
       </div>
     </div>
     <div class="record-card-actions">
-      <a href="/admin/records/{{ r.id }}/history" class="btn btn-grey btn-sm">History</a>
-      <form method="POST" action="/admin/records/{{ r.id }}/delete" onsubmit="return confirm('Delete this record? This cannot be undone.')">
+      <a href="/admin/records/{{ e.id }}/history" class="btn btn-grey btn-sm">History</a>
+      <form method="POST" action="/admin/records/{{ e.id }}/delete" onsubmit="return confirm('Delete this entry? This cannot be undone.')">
         <button type="submit" class="btn btn-red btn-sm">Delete</button>
       </form>
     </div>
@@ -65,25 +69,27 @@
 <div class="table-wrap desktop-only">
   <table id="records-table">
     <thead>
-      <tr><th data-col="0">Member</th><th data-col="1">Date</th><th data-col="2">Category</th><th data-col="3">Hrs</th><th data-col="4">Description</th><th data-col="5">Status</th><th></th></tr>
+      <tr><th data-col="0">Submitter</th><th data-col="1">Date</th><th data-col="2">Category</th><th data-col="3">Hrs</th><th data-col="4">Description</th><th data-col="5">People</th><th data-col="6">Status</th><th></th></tr>
     </thead>
     <tbody id="records-body">
 
-      {% for r in records %}
-      <tr data-search="{{ r.user.display_name|lower }} {{ r.category.name|lower }} {{ (r.description or '')|lower }} {{ r.status.value }}">
-        <td style="font-weight:600">{{ r.user.display_name }}</td>
-        <td style="white-space:nowrap">{{ r.date.strftime('%b %d, %Y') }}</td>
-        <td>{{ r.category.name }}</td>
-        <td style="font-weight:600">{{ '%.1f'|format(r.hours|float) }}</td>
-        <td style="font-size:0.85rem">{{ r.description or '—' }}</td>
+      {% for e in entries %}
+      <tr data-search="{{ e.submitter.display_name|lower }} {{ e.category.name|lower }} {{ (e.description or '')|lower }} {{ e.status.value }}">
+        <td style="font-weight:600">{{ e.submitter.display_name }}</td>
+        <td style="white-space:nowrap">{{ e.date.strftime('%b %d, %Y') }}</td>
+        <td>{{ e.category.name }}</td>
+        <td style="font-weight:600">{{ '%.1f'|format(e.hours|float) }}</td>
+        <td style="font-size:0.85rem">{{ e.description or '—' }}</td>
+        <td>{% for r in e.records %}<span class="people-pill">{{ r.user.display_name }}</span>{% endfor %}</td>
         <td>
-          <span class="badge badge-{{ r.status.value }}">{{ r.status.value }}</span>
-          {% if r.d4h_needs_resync %}<span class="badge badge-pending" title="Pending re-sync to D4H">⚠ resync</span>{% endif %}
+          <span class="badge badge-{{ e.status.value }}">{{ e.status.value }}</span>
+          {% set needs_resync = e.records | selectattr('d4h_needs_resync') | list %}
+          {% if needs_resync %}<span class="badge badge-pending" title="Pending re-sync to D4H">⚠ resync</span>{% endif %}
         </td>
         <td style="white-space:nowrap">
-          <a href="/admin/records/{{ r.id }}/edit" class="btn btn-outline btn-sm">Edit</a>
-          <a href="/admin/records/{{ r.id }}/history" class="btn btn-grey btn-sm">History</a>
-          <form method="POST" action="/admin/records/{{ r.id }}/delete" style="display:inline" onsubmit="return confirm('Delete this record? This cannot be undone.')">
+          <a href="/admin/records/{{ e.id }}/edit" class="btn btn-outline btn-sm">Edit</a>
+          <a href="/admin/records/{{ e.id }}/history" class="btn btn-grey btn-sm">History</a>
+          <form method="POST" action="/admin/records/{{ e.id }}/delete" style="display:inline" onsubmit="return confirm('Delete this entry? This cannot be undone.')">
             <button type="submit" class="btn btn-red btn-sm">Delete</button>
           </form>
         </td>
@@ -94,7 +100,7 @@
 </div>
 
 {% else %}
-<div class="empty"><div class="empty-icon">📋</div><p>No records found.</p></div>
+<div class="empty"><div class="empty-icon">📋</div><p>No entries found.</p></div>
 {% endif %}
 
 {% endblock %}

@@ -9,7 +9,8 @@ from flask import (Blueprint, abort, current_app, flash, jsonify, redirect,
 from auth import require_role
 from db import get_db
 from models import (AdminRole, AdminRoleAssignment, Category, CategoryApprover,
-                    D4HHours, D4HMember, HourType, HoursRecord, RecordStatus, User, UserRole)
+                    D4HHours, D4HMember, EntryHistory, HourType, HoursEntry,
+                    HoursRecord, RecordStatus, User, UserRole)
 
 logger = logging.getLogger(__name__)
 admin_bp = Blueprint('admin', __name__)
@@ -22,8 +23,8 @@ def index():
     from sqlalchemy import func
     last_sync = db.query(func.max(D4HMember.last_synced_at)).scalar()
     return render_template('admin/index.html',
-        pending=db.query(HoursRecord).filter_by(status=RecordStatus.pending).count(),
-        total_records=db.query(HoursRecord).count(),
+        pending=db.query(HoursEntry).filter_by(status=RecordStatus.pending).count(),
+        total_records=db.query(HoursEntry).count(),
         total_users=db.query(User).filter_by(is_active=True).count(),
         total_categories=db.query(Category).filter(
             Category.is_active == True, Category.is_system == False).count(),
@@ -42,43 +43,45 @@ def index():
 def records():
     db = get_db()
     status_filter = request.args.get('status')
-    q = db.query(HoursRecord)
+    q = db.query(HoursEntry)
     if status_filter and status_filter in RecordStatus.__members__:
-        q = q.filter(HoursRecord.status == RecordStatus(status_filter))
-    records = q.order_by(HoursRecord.date.desc()).limit(500).all()
-    return render_template('admin/records.html', records=records,
+        q = q.filter(HoursEntry.status == RecordStatus(status_filter))
+    entries = q.order_by(HoursEntry.date.desc()).limit(500).all()
+    return render_template('admin/records.html', entries=entries,
                            status_filter=status_filter, statuses=RecordStatus)
 
 
-@admin_bp.route('/admin/records/<int:record_id>/delete', methods=['POST'])
+@admin_bp.route('/admin/records/<int:entry_id>/delete', methods=['POST'])
 @require_role('admin')
-def delete_record(record_id):
+def delete_record(entry_id):
     db = get_db()
-    record = db.get(HoursRecord, record_id)
-    if not record:
+    entry = db.get(HoursEntry, entry_id)
+    if not entry:
         abort(404)
-    if record.status == RecordStatus.submitted:
-        try:
-            from d4h_submit import handle_submitted_record_delete
-            handle_submitted_record_delete(db, current_app.config['D4H_CONFIG'], record)
-        except Exception as e:
-            logger.warning(f'D4H retract on delete failed: {e}')
-    from models import RecordHistory
-    db.query(RecordHistory).filter_by(record_id=record_id).delete()
-    db.delete(record)
+    if entry.status == RecordStatus.submitted:
+        # Handle D4H cleanup for each record in the entry
+        for record in entry.records:
+            if record.d4h_record_id:
+                try:
+                    from d4h_submit import handle_submitted_record_delete
+                    handle_submitted_record_delete(db, current_app.config['D4H_CONFIG'], record)
+                except Exception as e:
+                    logger.warning(f'D4H retract on delete failed: {e}')
+                break  # All records share the same d4h_record_id; just call once
+    db.delete(entry)  # cascades to HoursRecord and EntryHistory
     db.commit()
-    flash('Record deleted.')
+    flash('Entry deleted.')
     return redirect(url_for('admin.records'))
 
 
-@admin_bp.route('/admin/records/<int:record_id>/history')
+@admin_bp.route('/admin/records/<int:entry_id>/history')
 @require_role('admin')
-def record_history(record_id):
+def record_history(entry_id):
     db = get_db()
-    record = db.get(HoursRecord, record_id)
-    if not record:
+    entry = db.get(HoursEntry, entry_id)
+    if not entry:
         abort(404)
-    return render_template('admin/history.html', record=record)
+    return render_template('admin/history.html', entry=entry)
 
 
 # ── Settings ─────────────────────────────────────────────────────────────────
@@ -239,9 +242,9 @@ def delete_category(cat_id):
     if cat.is_active:
         flash('Deactivate the category before deleting.', 'error')
         return redirect(url_for('admin.categories'))
-    in_use = db.query(HoursRecord).filter_by(category_id=cat_id).count()
+    in_use = db.query(HoursEntry).filter_by(category_id=cat_id).count()
     if in_use:
-        flash(f'Cannot delete — {in_use} record(s) use this category.', 'error')
+        flash(f'Cannot delete — {in_use} entry/entries use this category.', 'error')
         return redirect(url_for('admin.categories'))
     db.delete(cat)
     db.commit()
@@ -375,12 +378,19 @@ def hours_report():
     members = db.query(D4HMember).filter(
         D4HMember.status != 'Retired').order_by(D4HMember.name).all()
 
-    tool_records = db.query(HoursRecord).filter(
-        HoursRecord.status.in_([RecordStatus.approved, RecordStatus.submitted])).all()
+    # Query HoursRecord joined to HoursEntry for approved/submitted
+    from models import HoursEntry as _HE
+    tool_records = (
+        db.query(HoursRecord)
+        .join(_HE, HoursRecord.entry_id == _HE.id)
+        .filter(_HE.status.in_([RecordStatus.approved, RecordStatus.submitted]))
+        .all()
+    )
 
     tool_by_member = {}
     for r in tool_records:
-        if r.date.year != year:
+        e = r.entry
+        if not e or e.date.year != year:
             continue
         mid = r.user.d4h_member_id if r.user else None
         if mid:
@@ -402,8 +412,12 @@ def hours_report():
             return sum((float(h.hours) for h in d4h_hrs if h.hour_type.value in types), 0.0)
 
         def _tool(types):
-            return sum((float(r.hours) for r in tool_hrs
-                        if r.category and r.category.hour_type.value in types), 0.0)
+            return sum(
+                (float(r.entry.hours) for r in tool_hrs
+                 if r.entry and r.entry.category
+                 and r.entry.category.hour_type.value in types),
+                0.0,
+            )
 
         p_d4h  = _d4h(('primary',))
         p_tool = _tool(('primary',))
@@ -454,7 +468,6 @@ def member_detail(member_id):
     if member.user:
         tool_records = (db.query(HoursRecord)
                         .filter_by(user_id=member.user.id)
-                        .order_by(HoursRecord.date.desc())
                         .all())
 
     # Year summary
@@ -474,15 +487,18 @@ def member_detail(member_id):
             'search': f"{(h.activity_name or '').lower()} {(h.activity_type or '').lower()}",
         })
     for r in tool_records:
+        e = r.entry
+        if not e:
+            continue
         records.append({
             'source': 'hl',
-            'date': r.date,
-            'name': r.category.name if r.category else '—',
-            'sub': r.description[:60] if r.description else '',
-            'hour_type': r.category.hour_type.value if r.category else 'none',
-            'hours': float(r.hours),
-            'status': r.status.value,
-            'search': f"{(r.category.name if r.category else '').lower()} {(r.description or '').lower()}",
+            'date': e.date,
+            'name': e.category.name if e.category else '—',
+            'sub': e.description[:60] if e.description else '',
+            'hour_type': e.category.hour_type.value if e.category else 'none',
+            'hours': float(e.hours),
+            'status': e.status.value,
+            'search': f"{(e.category.name if e.category else '').lower()} {(e.description or '').lower()}",
         })
     records.sort(key=lambda x: x['date'], reverse=True)
 
@@ -500,14 +516,13 @@ def member_detail(member_id):
 
 # ── Admin Record Edit ─────────────────────────────────────────────────────────
 
-@admin_bp.route('/admin/records/<int:record_id>/edit', methods=['GET', 'POST'])
+@admin_bp.route('/admin/records/<int:entry_id>/edit', methods=['GET', 'POST'])
 @require_role('admin')
-def edit_record(record_id):
+def edit_record(entry_id):
     from datetime import datetime as dt
-    from models import RecordHistory
     db = get_db()
-    record = db.get(HoursRecord, record_id)
-    if not record:
+    entry = db.get(HoursEntry, entry_id)
+    if not entry:
         abort(404)
     categories = db.query(Category).filter(
         Category.is_active == True, Category.is_system == False
@@ -515,52 +530,54 @@ def edit_record(record_id):
 
     if request.method == 'POST':
         before = {
-            'date': str(record.date), 'hours': str(record.hours),
-            'description': record.description, 'category_id': record.category_id,
-            'status': record.status.value,
+            'date': str(entry.date), 'hours': str(entry.hours),
+            'description': entry.description, 'category_id': entry.category_id,
+            'status': entry.status.value,
         }
         from flask import session as flask_session
-        record.category_id = int(request.form['category_id'])
-        record.date = date.fromisoformat(request.form['date'])
-        record.hours = float(request.form['hours'])
-        record.description = request.form.get('description', '').strip() or None
+        entry.category_id = int(request.form['category_id'])
+        entry.date = date.fromisoformat(request.form['date'])
+        entry.hours = float(request.form['hours'])
+        entry.description = request.form.get('description', '').strip() or None
         new_status = request.form.get('status')
         if new_status and new_status in RecordStatus.__members__:
-            record.status = RecordStatus(new_status)
-        record.updated_at = dt.now()
-        db.add(RecordHistory(
-            record_id=record.id,
+            entry.status = RecordStatus(new_status)
+        entry.updated_at = dt.now()
+        db.add(EntryHistory(
+            entry_id=entry.id,
             action='admin_edit',
             performed_by=flask_session['user_id'],
             changes={'before': before, 'after': {
-                'date': str(record.date), 'hours': str(record.hours),
-                'description': record.description, 'category_id': record.category_id,
-                'status': record.status.value,
+                'date': str(entry.date), 'hours': str(entry.hours),
+                'description': entry.description, 'category_id': entry.category_id,
+                'status': entry.status.value,
             }},
         ))
         db.commit()
 
-        if record.status in (RecordStatus.submitted, RecordStatus.approved):
-            if record.category and record.category.hour_type.value in ('primary', 'secondary', 'other'):
+        if entry.status in (RecordStatus.submitted, RecordStatus.approved):
+            if entry.category and entry.category.hour_type.value in ('primary', 'secondary', 'other'):
                 try:
                     from d4h_submit import push_group_immediately
-                    ok = push_group_immediately(
-                        db, current_app.config['D4H_CONFIG'],
-                        record.user_id,
-                        record.category.hour_type.value,
-                        record.date.year, record.date.month,
-                    )
-                    if not ok:
-                        flash('Record updated — D4H sync failed, will retry automatically.',
-                              'warning')
-                        return redirect(url_for('admin.records'))
+                    # Push for each user in the entry
+                    for record in entry.records:
+                        ok = push_group_immediately(
+                            db, current_app.config['D4H_CONFIG'],
+                            record.user_id,
+                            entry.category.hour_type.value,
+                            entry.date.year, entry.date.month,
+                        )
+                        if not ok:
+                            flash('Entry updated — D4H sync failed, will retry automatically.',
+                                  'warning')
+                            return redirect(url_for('admin.records'))
                 except Exception as e:
                     logger.warning(f'Immediate D4H push failed: {e}')
 
-        flash('Record updated.')
+        flash('Entry updated.')
         return redirect(url_for('admin.records'))
 
-    return render_template('admin/edit_record.html', record=record,
+    return render_template('admin/edit_record.html', entry=entry,
                            categories=categories, statuses=RecordStatus)
 
 
@@ -670,11 +687,10 @@ def remove_assignment(assignment_id):
 @admin_bp.route('/admin/roles/<int:role_id>/generate', methods=['POST'])
 @require_role('admin')
 def generate_role_hours(role_id):
-    """Generate records from each assignment's start_date up to today, backfilling any missing months."""
+    """Generate entries from each assignment's start_date up to today, backfilling any missing months."""
     import calendar
     from datetime import datetime as dt
     from sqlalchemy import extract
-    from models import HoursRecord, RecordStatus, AdminRoleAssignment
 
     db = get_db()
     today = date.today()
@@ -688,10 +704,10 @@ def generate_role_hours(role_id):
         # Walk every month from start_date up to (but not including) the current month
         cur_year, cur_month = a.start_date.year, a.start_date.month
         while (cur_year, cur_month) < (today.year, today.month):
-            existing = db.query(HoursRecord).filter(
-                HoursRecord.auto_role_assignment_id == a.id,
-                extract('year',  HoursRecord.date) == cur_year,
-                extract('month', HoursRecord.date) == cur_month,
+            existing = db.query(HoursEntry).filter(
+                HoursEntry.auto_role_assignment_id == a.id,
+                extract('year',  HoursEntry.date) == cur_year,
+                extract('month', HoursEntry.date) == cur_month,
             ).first()
             if not existing:
                 last_day = calendar.monthrange(cur_year, cur_month)[1]
@@ -702,8 +718,8 @@ def generate_role_hours(role_id):
                     from role_hours import pro_rated_hours
                     hours = pro_rated_hours(role.monthly_hours, cur_year, cur_month,
                                            a.start_date, a.end_date)
-                    db.add(HoursRecord(
-                        user_id=a.user_id,
+                    entry = HoursEntry(
+                        submitted_by=a.user_id,
                         category_id=role.category_id,
                         date=record_date,
                         hours=hours,
@@ -711,7 +727,10 @@ def generate_role_hours(role_id):
                         status=RecordStatus.approved,
                         approved_at=dt.now(),
                         auto_role_assignment_id=a.id,
-                    ))
+                    )
+                    db.add(entry)
+                    db.flush()
+                    db.add(HoursRecord(entry_id=entry.id, user_id=a.user_id))
                     generated += 1
 
             # Advance to next month
@@ -722,5 +741,5 @@ def generate_role_hours(role_id):
                 cur_month += 1
 
     db.commit()
-    flash(f'Generated {generated} record{"s" if generated != 1 else ""} for past months.')
+    flash(f'Generated {generated} entry{"s" if generated != 1 else ""} for past months.')
     return redirect(url_for('admin.roles'))

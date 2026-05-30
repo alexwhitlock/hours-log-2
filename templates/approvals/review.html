@@ -1,9 +1,14 @@
 {% extends 'base.html' %}
-{% block title %}Review Record{% endblock %}
+{% block title %}Review Entry{% endblock %}
+{% block head %}
+<style>
+  .people-pill { display:inline-block;background:var(--accent-light,#e8f0fe);color:var(--accent,#1a73e8);border-radius:999px;padding:2px 8px;font-size:0.75rem;font-weight:600;margin:1px 2px; }
+</style>
+{% endblock %}
 {% block content %}
 
 <div class="page-header">
-  <h1>Review Record</h1>
+  <h1>Review Entry</h1>
   <a href="/approvals" class="btn btn-outline btn-sm">
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="vertical-align:-2px"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     Back
@@ -11,16 +16,22 @@
 </div>
 
 <div class="card">
-  <div class="card-title">Submitted by {{ record.user.display_name }}</div>
+  <div class="card-title">Submitted by {{ entry.submitter.display_name }}</div>
+  {% if entry.records|length > 1 %}
+  <div style="margin-bottom:12px">
+    <div style="font-size:0.82rem;color:var(--muted);margin-bottom:4px">For:</div>
+    {% for r in entry.records %}<span class="people-pill">{{ r.user.display_name }}</span>{% endfor %}
+  </div>
+  {% endif %}
   <form method="POST">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
       <div class="field" style="margin-bottom:0">
         <label for="date">Date</label>
-        <input type="date" name="date" id="date" value="{{ record.date.isoformat() }}" required>
+        <input type="date" name="date" id="date" value="{{ entry.date.isoformat() }}" required>
       </div>
       <div class="field" style="margin-bottom:0">
         <label for="hours">Hours</label>
-        <input type="number" name="hours" id="hours" value="{{ record.hours }}"
+        <input type="number" name="hours" id="hours" value="{{ entry.hours }}"
                step="0.25" min="0.25" max="24" required>
       </div>
     </div>
@@ -28,7 +39,7 @@
       <label for="category_id">Category</label>
       <select name="category_id" id="category_id" required>
         {% for cat in categories %}
-        <option value="{{ cat.id }}" {% if cat.id == record.category_id %}selected{% endif %}>
+        <option value="{{ cat.id }}" {% if cat.id == entry.category_id %}selected{% endif %}>
           {{ cat.name }} ({{ cat.hour_type.value }})
         </option>
         {% endfor %}
@@ -36,16 +47,16 @@
     </div>
     <div class="field">
       <label for="description">Description</label>
-      <textarea name="description" id="description">{{ record.description or '' }}</textarea>
+      <textarea name="description" id="description">{{ entry.description or '' }}</textarea>
     </div>
     <div class="field">
-      <label for="comment">Approver comment <span style="font-weight:400;color:var(--muted)">(optional — shown in record history)</span></label>
+      <label for="comment">Approver comment <span style="font-weight:400;color:var(--muted)">(optional — shown in entry history)</span></label>
       <textarea name="comment" id="comment" style="height:70px" placeholder="Add a note for the member…"></textarea>
     </div>
     <div style="display:flex;gap:10px;margin-top:4px">
       <button type="submit" name="action" value="approve" class="btn btn-green">Approve</button>
       <button type="submit" name="action" value="reject" class="btn btn-red"
-              onclick="return confirm('Reject this record?')">Reject</button>
+              onclick="return confirm('Reject this entry?')">Reject</button>
     </div>
   </form>
 </div>
