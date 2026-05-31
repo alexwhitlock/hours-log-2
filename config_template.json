@@ -10,5 +10,6 @@
   "SMTP_PORT": 587,
   "SMTP_USERNAME": "automations@sbo-ovsar.ca",
   "SMTP_PASSWORD": "<Gmail app password — generate at myaccount.google.com/apppasswords>",
-  "SMTP_FROM": "SBO-OVSAR Hours Log <automations@sbo-ovsar.ca>"
+  "SMTP_FROM": "SBO-OVSAR Hours Log <automations@sbo-ovsar.ca>",
+  "MAIL_DRY_RUN": false
 }

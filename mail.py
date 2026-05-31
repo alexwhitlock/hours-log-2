@@ -17,26 +17,33 @@ from email.mime.text import MIMEText
 logger = logging.getLogger(__name__)
 
 _cfg: dict = {}
+_dry_run: bool = False
 
 
 def init_mail(config: dict) -> None:
-    global _cfg
+    global _cfg, _dry_run
     _cfg = {k: config.get(k) for k in
             ('SMTP_HOST', 'SMTP_PORT', 'SMTP_USERNAME', 'SMTP_PASSWORD', 'SMTP_FROM')}
-    if _cfg.get('SMTP_HOST'):
+    _dry_run = bool(config.get('MAIL_DRY_RUN'))
+    if _dry_run:
+        logger.info('Mail: DRY RUN mode — emails will be logged but not sent')
+    elif _cfg.get('SMTP_HOST'):
         logger.info(f"Mail: configured via {_cfg['SMTP_HOST']}:{_cfg.get('SMTP_PORT', 587)}")
     else:
         logger.info('Mail: not configured — notifications disabled')
 
 
 def _is_configured() -> bool:
-    return bool(_cfg.get('SMTP_HOST') and _cfg.get('SMTP_USERNAME') and _cfg.get('SMTP_PASSWORD'))
+    return _dry_run or bool(_cfg.get('SMTP_HOST') and _cfg.get('SMTP_USERNAME') and _cfg.get('SMTP_PASSWORD'))
 
 
 def send(to: str, subject: str, body_html: str, body_text: str = '') -> bool:
     if not _is_configured():
         logger.debug(f'Mail not configured — skipping email to {to}: {subject}')
         return False
+    if _dry_run:
+        logger.info(f'Mail sent to {to}: {subject}')
+        return True
     try:
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
