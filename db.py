@@ -73,9 +73,10 @@ def run_migrations() -> None:
                     d4h_status         = (SELECT dm.status           FROM d4h_members dm WHERE dm.id = users.d4h_member_id),
                     count_rolling_hours= (SELECT dm.count_rolling_hours FROM d4h_members dm WHERE dm.id = users.d4h_member_id),
                     last_synced_at     = (SELECT dm.last_synced_at   FROM d4h_members dm WHERE dm.id = users.d4h_member_id),
-                    google_username    = COALESCE(google_username,
-                                            (SELECT dm.google_username FROM d4h_members dm WHERE dm.id = users.d4h_member_id),
-                                            username)
+                    google_username    = COALESCE(
+                                            NULLIF(google_username, ''),
+                                            (SELECT NULLIF(dm.google_username, '') FROM d4h_members dm WHERE dm.id = users.d4h_member_id),
+                                            CASE WHEN username NOT LIKE 'd4h_%' THEN username ELSE NULL END)
                 WHERE d4h_member_id IS NOT NULL
             '''))
 
