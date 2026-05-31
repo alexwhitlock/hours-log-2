@@ -24,9 +24,10 @@ def index():
     if not show_rejected:
         q = q.filter(HoursEntry.status != RecordStatus.rejected)
     entries = q.order_by(HoursEntry.date.desc()).all()
-    # Build a map of entry_id -> list of user records (for "for N people" display)
+    # Build a map of entry_id -> all records (for "for N people" display)
+    all_records = db.query(HoursRecord).filter(HoursRecord.entry_id.in_(entry_ids)).all() if entry_ids else []
     entry_record_map = {}
-    for r in records_qs:
+    for r in all_records:
         entry_record_map.setdefault(r.entry_id, []).append(r)
     return render_template('hours/index.html', entries=entries,
                            entry_record_map=entry_record_map,
@@ -87,9 +88,10 @@ def new():
                 if u.role == UserRole.admin or u.id in assigned_user_ids
             ]
             submitter = db.get(User, session['user_id'])
+            member_names = [r.user.display_name for r in entry.records if r.user]
             for approver in approvers:
                 notify_pending_submitted(approver.email, approver.display_name,
-                                         submitter.display_name, entry)
+                                         submitter.display_name, entry, member_names)
 
         flash('Submitted for approval.' if action == 'submit' else 'Saved as draft.')
         return redirect(url_for('hours.index'))

@@ -95,12 +95,15 @@ def notify_record_rejected(user_email: str, user_name: str, record, reason: str 
 
 
 def notify_pending_submitted(approver_email: str, approver_name: str,
-                              submitter_name: str, record) -> None:
-    subject = f'New hours record pending approval — {submitter_name}'
+                              submitter_name: str, record,
+                              member_names: list = None) -> None:
+    for_line = ', '.join(member_names) if member_names else submitter_name
+    subject = f'New hours record pending approval — {for_line}'
     html = f"""
 <p>Hi {approver_name},</p>
 <p><strong>{submitter_name}</strong> has submitted a hours record for approval.</p>
 <ul>
+  <li><strong>For:</strong> {for_line}</li>
   <li><strong>Date:</strong> {record.date}</li>
   <li><strong>Hours:</strong> {record.hours}</li>
   <li><strong>Category:</strong> {record.category.name if record.category else '—'}</li>
