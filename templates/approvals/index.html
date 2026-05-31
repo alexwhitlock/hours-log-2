@@ -37,13 +37,13 @@
     </div>
     <div class="record-card-actions">
       <a href="/approvals/{{ e.id }}/review" class="btn btn-outline btn-sm">Edit</a>
-      <form method="POST" action="/approvals/{{ e.id }}/approve">
+      <form method="POST" action="/approvals/{{ e.id }}/approve" style="display:contents">
         <button type="submit" class="btn btn-green btn-sm">Approve</button>
       </form>
-      <form method="POST" action="/approvals/{{ e.id }}/reject" onsubmit="return confirm('Reject this entry?')">
+      <form method="POST" action="/approvals/{{ e.id }}/reject" onsubmit="return confirm('Reject this entry?')" style="display:contents">
         <button type="submit" class="btn btn-red btn-sm">Reject</button>
       </form>
-      <form method="POST" action="/approvals/{{ e.id }}/delete" onsubmit="return confirm('Delete this entry?')">
+      <form method="POST" action="/approvals/{{ e.id }}/delete" onsubmit="return confirm('Delete this entry?')" style="display:contents">
         <button type="submit" class="btn btn-grey btn-sm">Delete</button>
       </form>
     </div>

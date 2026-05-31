@@ -38,7 +38,7 @@
     <div class="record-card-actions">
       {% if e.status.value in ('draft', 'pending') and e.submitted_by == current_user_id %}<a href="/hours/{{ e.id }}/edit" class="btn btn-outline btn-sm">Edit</a>{% endif %}
       {% if e.status.value in ('draft', 'pending') and e.submitted_by == current_user_id %}
-      <form method="POST" action="/hours/{{ e.id }}/delete" onsubmit="return confirm('Delete this entry?')">
+      <form method="POST" action="/hours/{{ e.id }}/delete" onsubmit="return confirm('Delete this entry?')" style="display:contents">
         <button type="submit" class="btn btn-red btn-sm">Delete</button>
       </form>
       {% endif %}
