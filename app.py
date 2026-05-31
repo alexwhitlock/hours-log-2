@@ -220,6 +220,8 @@ def _send_monthly_progress_summaries(app) -> None:
     try:
         users = db.query(User).filter(
             User.is_active == True,
+            User.last_login_at != None,
+            ~User.email.like('%@d4h.placeholder'),
             User.notify_monthly_summary == True,
         ).all()
         for user in users:
@@ -266,6 +268,7 @@ def _send_summaries(app: 'Flask') -> None:
         users = db.query(User).filter(
             User.is_active == True,
             User.last_login_at != None,
+            ~User.email.like('%@d4h.placeholder'),
             User.notify_approval.in_([NotifyPref.daily, NotifyPref.weekly]),
         ).all()
         year = datetime.now().year
