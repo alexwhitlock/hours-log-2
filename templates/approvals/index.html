@@ -36,7 +36,7 @@
       </div>
     </div>
     <div class="record-card-actions">
-      <a href="/approvals/{{ e.id }}/review" class="btn btn-outline btn-sm">Edit</a>
+      <a href="/approvals/{{ e.id }}/review" class="btn btn-outline btn-sm">Review / Edit</a>
       <form method="POST" action="/approvals/{{ e.id }}/approve" style="display:contents">
         <button type="submit" class="btn btn-green btn-sm">Approve</button>
       </form>
@@ -67,7 +67,7 @@
         <td style="font-size:0.85rem">{{ e.description or '—' }}</td>
         <td style="font-size:0.85rem">{% for r in e.records %}{{ r.user.display_name }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
         <td style="white-space:nowrap">
-          <a href="/approvals/{{ e.id }}/review" class="btn btn-outline btn-sm">Edit</a>
+          <a href="/approvals/{{ e.id }}/review" class="btn btn-outline btn-sm">Review / Edit</a>
           <form method="POST" action="/approvals/{{ e.id }}/approve" style="display:inline">
             <button type="submit" class="btn btn-green btn-sm">✓</button>
           </form>
