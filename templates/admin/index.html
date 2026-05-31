@@ -143,6 +143,7 @@
         if (s) txt += ` · ${s.pushed} records submitted to D4H`;
         res.textContent = txt;
         res.style.color = 'var(--green)';
+        setTimeout(() => location.reload(), 2000);
       } else if (d.error) {
         res.textContent = `Sync failed: ${d.error}`;
         res.style.color = 'var(--red)';
