@@ -59,15 +59,13 @@ def delete_record(entry_id):
     if not entry:
         abort(404)
     if entry.status == RecordStatus.submitted:
-        # Handle D4H cleanup for each record in the entry
         for record in entry.records:
             if record.d4h_record_id:
                 try:
                     from d4h_submit import handle_submitted_record_delete
                     handle_submitted_record_delete(db, current_app.config['D4H_CONFIG'], record)
                 except Exception as e:
-                    logger.warning(f'D4H retract on delete failed: {e}')
-                break  # All records share the same d4h_record_id; just call once
+                    logger.warning(f'D4H retract on delete failed for record {record.id}: {e}')
     db.delete(entry)  # cascades to HoursRecord and EntryHistory
     db.commit()
     flash('Entry deleted.')

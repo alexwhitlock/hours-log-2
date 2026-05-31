@@ -244,7 +244,13 @@ def handle_submitted_record_delete(db, config: dict, record) -> None:
     ]
 
     client = _make_client(config)
+    from models import D4HSubmissionEvent, HourType
+    sub_event = db.query(D4HSubmissionEvent).filter_by(
+        year=year, month=month, hour_type=HourType(hour_type),
+    ).first()
     try:
+        if sub_event:
+            client.set_event_published(sub_event.d4h_event_id, False)
         if remaining:
             total = sum(float(r.entry.hours) for r in remaining if r.entry)
             client.patch_submission_attendance(
@@ -252,5 +258,12 @@ def handle_submitted_record_delete(db, config: dict, record) -> None:
             )
         else:
             client.delete_submission_attendance(int(record.d4h_record_id))
+        if sub_event:
+            client.set_event_published(sub_event.d4h_event_id, True)
     except Exception as e:
         logger.error(f'D4H submit: failed to update attendance on delete: {e}')
+        if sub_event:
+            try:
+                client.set_event_published(sub_event.d4h_event_id, True)
+            except Exception:
+                pass
