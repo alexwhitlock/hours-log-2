@@ -185,11 +185,13 @@ document.querySelectorAll('.filter-bar').forEach(bar => {
       } else if (isSource) {
         activeSource = activeSource === chip.dataset.source ? '' : chip.dataset.source;
         chips.forEach(c => { if (c.dataset.source !== undefined && c.dataset.type === undefined) c.classList.remove('active'); });
+        chips[0].classList.remove('active');
         if (activeSource) chip.classList.add('active');
         else chips[0].classList.add('active');
       } else if (isType) {
         activeType = activeType === chip.dataset.type ? '' : chip.dataset.type;
         chips.forEach(c => { if (c.dataset.type !== undefined && c.dataset.source === undefined) c.classList.remove('active'); });
+        chips[0].classList.remove('active');
         if (activeType) chip.classList.add('active');
         else chips[0].classList.add('active');
       }
