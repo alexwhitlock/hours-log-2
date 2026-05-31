@@ -4,7 +4,6 @@
 <style>
   @media (max-width: 640px) { .desktop-only { display: none !important; } }
   @media (min-width: 641px) { .mobile-only  { display: none !important; } }
-  .people-pill { display:inline-block;background:var(--accent-light,#e8f0fe);color:var(--accent,#1a73e8);border-radius:999px;padding:2px 8px;font-size:0.75rem;font-weight:600;margin:1px 2px; }
 </style>
 {% endblock %}
 {% block container_class %}wide{% endblock %}
@@ -46,9 +45,7 @@
         <div class="record-card-meta">{{ e.submitter.display_name }} · {{ e.date.strftime('%b %d, %Y') }}</div>
         <div class="record-card-cat">{{ e.category.name }}</div>
         {% if e.description %}<div class="record-card-desc" style="margin-top:4px">{{ e.description }}</div>{% endif %}
-        {% if e.records|length > 1 %}
-        <div style="margin-top:4px">{% for r in e.records %}<span class="people-pill">{{ r.user.display_name }}</span>{% endfor %}</div>
-        {% endif %}
+        <div style="font-size:0.78rem;color:var(--muted);margin-top:2px">{% for r in e.records %}{{ r.user.display_name }}{% if not loop.last %}<br>{% endif %}{% endfor %}</div>
       </div>
       <div style="text-align:right">
         <div class="record-card-hours">{{ '%.1f'|format(e.hours|float) }} hrs</div>
@@ -80,7 +77,7 @@
         <td>{{ e.category.name }}</td>
         <td style="font-weight:600">{{ '%.1f'|format(e.hours|float) }}</td>
         <td style="font-size:0.85rem">{{ e.description or '—' }}</td>
-        <td>{% for r in e.records %}<span class="people-pill">{{ r.user.display_name }}</span>{% endfor %}</td>
+        <td style="font-size:0.85rem">{% for r in e.records %}{{ r.user.display_name }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
         <td>
           <span class="badge badge-{{ e.status.value }}">{{ e.status.value }}</span>
           {% set needs_resync = e.records | selectattr('d4h_needs_resync') | list %}
