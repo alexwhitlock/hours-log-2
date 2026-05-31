@@ -36,7 +36,7 @@
   <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
     <div>
       <div style="font-weight:700;font-size:0.95rem;text-transform:capitalize">{{ h.action.replace('_', ' ') }}</div>
-      <div style="font-size:0.82rem;color:var(--muted);margin-top:2px">by {{ h.actor.display_name }}</div>
+      <div style="font-size:0.82rem;color:var(--muted);margin-top:2px">{% if h.action == 'pushed_to_d4h' %}automated{% else %}by {{ h.actor.display_name }}{% endif %}</div>
       {% if h.changes and h.changes.get('reason') %}
       <div style="font-size:0.82rem;color:var(--red);margin-top:4px">Reason: {{ h.changes.reason }}</div>
       {% endif %}
