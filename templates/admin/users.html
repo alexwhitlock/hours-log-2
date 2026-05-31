@@ -17,17 +17,17 @@
   </div>
 </div>
 
-<input type="search" id="users-search" placeholder="Search by name or email…"
+<input type="search" id="users-search" placeholder="Search by name or ref…"
        style="width:100%;margin-bottom:10px">
 
 <!-- Mobile: cards -->
 <div class="mobile-only" id="users-cards">
   {% for u in users %}
-  <div class="record-card" data-search="{{ u.display_name|lower }} {{ (u.email or '')|lower }}" {% if not u.is_active %}style="opacity:.5"{% endif %}>
+  <div class="record-card" data-search="{{ u.display_name|lower }} {{ (u.ref or '')|lower }}" {% if not u.is_active %}style="opacity:.5"{% endif %}>
     <div class="record-card-top">
       <div>
         <div class="record-card-cat">{{ u.display_name }}</div>
-        <div class="record-card-meta" style="margin-top:2px">{{ u.email or u.ref or '—' }}{% if not u.google_sub %} <span style="color:var(--muted);font-size:0.72rem">(not logged in)</span>{% endif %}</div>
+        <div class="record-card-meta" style="margin-top:2px">{{ u.ref or '—' }}{% if not u.google_sub %} · <span style="color:var(--muted);font-size:0.72rem">not logged in</span>{% endif %}</div>
         <div style="font-size:0.75rem;color:var(--muted);margin-top:2px">Last login: {{ u.last_login_at.strftime('%b %d, %Y') if u.last_login_at else 'Never' }}</div>
       </div>
       <div>{% if u.is_active %}<span class="badge badge-approved">Active</span>{% else %}<span class="badge badge-draft">Inactive</span>{% endif %}</div>
@@ -52,13 +52,13 @@
 <div class="table-wrap desktop-only">
   <table id="users-table">
     <thead>
-      <tr><th data-col="0">Name</th><th data-col="1">Email</th><th data-col="2">Role</th><th data-col="3">Status</th><th data-col="4">Last Login</th><th></th></tr>
+      <tr><th data-col="0">Name</th><th data-col="1">D4H Ref</th><th data-col="2">Role</th><th data-col="3">Status</th><th data-col="4">Last Login</th><th></th></tr>
     </thead>
     <tbody id="users-body">
       {% for u in users %}
-      <tr data-search="{{ u.display_name|lower }} {{ (u.email or '')|lower }}" {% if not u.is_active %}style="opacity:.5"{% endif %}>
+      <tr data-search="{{ u.display_name|lower }} {{ (u.ref or '')|lower }}" {% if not u.is_active %}style="opacity:.5"{% endif %}>
         <td style="font-weight:600">{{ u.display_name }}</td>
-        <td style="font-size:0.85rem">{% if u.google_sub %}{{ u.email or '—' }}{% else %}<span style="color:var(--muted)">{{ u.ref or '—' }} (not logged in)</span>{% endif %}</td>
+        <td style="font-size:0.85rem;font-family:monospace">{{ u.ref or '—' }}{% if not u.google_sub %} <span style="color:var(--muted);font-family:sans-serif;font-size:0.75rem">· not logged in</span>{% endif %}</td>
         <td>
           <form method="POST" action="/admin/users/{{ u.id }}/role" style="display:inline">
             <select name="role" onchange="this.form.submit()" style="width:auto;padding:6px 28px 6px 8px;font-size:0.85rem;border-radius:6px">
