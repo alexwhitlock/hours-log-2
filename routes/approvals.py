@@ -118,11 +118,12 @@ def review(entry_id):
             # Push each record in the entry to D4H
             for record in entry.records:
                 _push_to_d4h(db, record)
-            # Send approval notifications
+            # Send approval notification to submitter only
+            submitter = db.get(User, entry.submitted_by)
+            if submitter and submitter.notify_approval == NotifyPref.realtime:
+                from mail import notify_record_approved
+                notify_record_approved(submitter.email, submitter.display_name, entry)
             for record in entry.records:
-                if record.user and record.user.notify_approval == NotifyPref.realtime:
-                    from mail import notify_record_approved
-                    notify_record_approved(record.user.email, record.user.display_name, entry)
                 _check_tax_credit_milestone(db, record.user)
             flash('Entry approved.')
 
@@ -135,11 +136,11 @@ def review(entry_id):
                          **({'comment': comment} if comment else {})},
             ))
             db.commit()
-            for record in entry.records:
-                if record.user and record.user.notify_approval == NotifyPref.realtime:
-                    from mail import notify_record_rejected
-                    notify_record_rejected(record.user.email, record.user.display_name,
-                                           entry, comment or '')
+            submitter = db.get(User, entry.submitted_by)
+            if submitter and submitter.notify_approval == NotifyPref.realtime:
+                from mail import notify_record_rejected
+                notify_record_rejected(submitter.email, submitter.display_name,
+                                       entry, comment or '')
             flash('Entry rejected.')
 
         return redirect(url_for('approvals.index'))
@@ -164,10 +165,11 @@ def approve(entry_id):
     db.commit()
     for record in entry.records:
         _push_to_d4h(db, record)
-        if record.user and record.user.notify_approval == NotifyPref.realtime:
-            from mail import notify_record_approved
-            notify_record_approved(record.user.email, record.user.display_name, entry)
         _check_tax_credit_milestone(db, record.user)
+    submitter = db.get(User, entry.submitted_by)
+    if submitter and submitter.notify_approval == NotifyPref.realtime:
+        from mail import notify_record_approved
+        notify_record_approved(submitter.email, submitter.display_name, entry)
     flash('Entry approved.')
     return redirect(url_for('approvals.index'))
 
@@ -202,9 +204,9 @@ def reject(entry_id):
         changes={'comment': reason or None},
     ))
     db.commit()
-    for record in entry.records:
-        if record.user and record.user.notify_approval == NotifyPref.realtime:
-            from mail import notify_record_rejected
-            notify_record_rejected(record.user.email, record.user.display_name, entry, reason)
+    submitter = db.get(User, entry.submitted_by)
+    if submitter and submitter.notify_approval == NotifyPref.realtime:
+        from mail import notify_record_rejected
+        notify_record_rejected(submitter.email, submitter.display_name, entry, reason)
     flash('Entry rejected.')
     return redirect(url_for('approvals.index'))
