@@ -4,7 +4,6 @@
 <style>
   @media (max-width: 640px) { .desktop-only { display: none !important; } }
   @media (min-width: 641px) { .mobile-only  { display: none !important; } }
-  .people-pill { display:inline-block;background:var(--accent-light,#e8f0fe);color:var(--accent,#1a73e8);border-radius:999px;padding:2px 8px;font-size:0.75rem;font-weight:600;margin:1px 2px; }
 </style>
 {% endblock %}
 {% block container_class %}wide{% endblock %}
@@ -29,7 +28,7 @@
         <div class="record-card-cat">{{ e.category.name }}</div>
         {% if e.description %}<div class="record-card-desc" style="margin-top:4px">{{ e.description }}</div>{% endif %}
         <div style="margin-top:4px">
-          {% for r in e.records %}<span class="people-pill">{{ r.user.display_name }}</span>{% endfor %}
+          {% for r in e.records %}{{ r.user.display_name }}{% if not loop.last %}<br>{% endif %}{% endfor %}
         </div>
       </div>
       <div style="text-align:right">
