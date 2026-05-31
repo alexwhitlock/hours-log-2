@@ -59,7 +59,7 @@ def _push_group(db, client, records: list, year: int, month: int,
     from models import RecordStatus
 
     member_d4h_id = next(
-        (r.user.d4h_member_id for r in records if r.user and r.user.d4h_member_id),
+        (r.user.d4h_id for r in records if r.user and r.user.d4h_id),
         None,
     )
     if not member_d4h_id:
@@ -148,7 +148,7 @@ def run_submission(db, config: dict) -> dict:
         and r.entry.category
         and r.entry.category.hour_type.value in SUBMITTABLE_TYPES
         and r.user
-        and r.user.d4h_member_id
+        and r.user.d4h_id
     ]
 
     # Group by (user_id, hour_type, year, month) using entry metadata

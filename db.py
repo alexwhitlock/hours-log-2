@@ -38,88 +38,164 @@ def close_db(e=None) -> None:
 
 
 def run_migrations() -> None:
-    """Migrate the database schema to the two-level HoursEntry/HoursRecord model."""
     sql = __import__('sqlalchemy').text
     with _engine.connect() as conn:
-        # Clean up any leftover temp table from a failed previous migration
         conn.execute(sql('DROP TABLE IF EXISTS users_new'))
+        conn.execute(sql('DROP TABLE IF EXISTS d4h_hours_new'))
+        conn.execute(sql('PRAGMA foreign_keys=OFF'))
 
-        # ── 1. Recreate users table with google_sub nullable ──────────────────
-        existing_cols = [r[1] for r in conn.execute(sql('PRAGMA table_info(users)'))]
-        if existing_cols:
-            # Check if google_sub is currently NOT NULL by inspecting notnull flag
-            col_info = {r[1]: r for r in conn.execute(sql('PRAGMA table_info(users)'))}
-            google_sub_notnull = col_info.get('google_sub', (None, None, None, None, None, None))[3]
-            if google_sub_notnull:
-                # Need to recreate the table with google_sub nullable
-                conn.execute(sql('PRAGMA foreign_keys=OFF'))
+        existing_user_cols = [r[1] for r in conn.execute(sql('PRAGMA table_info(users)'))]
+
+        # ── Merge d4h_members into users ──────────────────────────────────────
+        d4h_members_exists = conn.execute(sql(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='d4h_members'"
+        )).fetchone()
+
+        if d4h_members_exists and existing_user_cols:
+            # Step 1: add D4H columns to users if missing
+            for col, defn in [
+                ('d4h_id',             'INTEGER'),
+                ('ref',                'TEXT'),
+                ('d4h_status',         'TEXT'),
+                ('count_rolling_hours','INTEGER'),
+                ('last_synced_at',     'DATETIME'),
+                ('google_username',    'TEXT'),
+            ]:
+                if col not in existing_user_cols:
+                    conn.execute(sql(f'ALTER TABLE users ADD COLUMN {col} {defn}'))
+
+            # Step 2: populate D4H columns from d4h_members for linked users
+            conn.execute(sql('''
+                UPDATE users SET
+                    d4h_id             = (SELECT dm.id               FROM d4h_members dm WHERE dm.id = users.d4h_member_id),
+                    ref                = (SELECT dm.ref              FROM d4h_members dm WHERE dm.id = users.d4h_member_id),
+                    display_name       = COALESCE((SELECT dm.name    FROM d4h_members dm WHERE dm.id = users.d4h_member_id), display_name),
+                    d4h_status         = (SELECT dm.status           FROM d4h_members dm WHERE dm.id = users.d4h_member_id),
+                    count_rolling_hours= (SELECT dm.count_rolling_hours FROM d4h_members dm WHERE dm.id = users.d4h_member_id),
+                    last_synced_at     = (SELECT dm.last_synced_at   FROM d4h_members dm WHERE dm.id = users.d4h_member_id),
+                    google_username    = COALESCE(google_username,
+                                            (SELECT dm.google_username FROM d4h_members dm WHERE dm.id = users.d4h_member_id),
+                                            username)
+                WHERE d4h_member_id IS NOT NULL
+            '''))
+
+            # Step 3: create user rows for D4H members that have no user yet
+            conn.execute(sql('''
+                INSERT OR IGNORE INTO users
+                    (d4h_id, ref, display_name, d4h_status, count_rolling_hours,
+                     last_synced_at, google_username, role, is_active, created_at,
+                     notify_approval, notify_pending, notify_monthly_summary, notify_tax_credit)
+                SELECT
+                    dm.id, dm.ref, dm.name, dm.status, dm.count_rolling_hours,
+                    dm.last_synced_at,
+                    CASE WHEN dm.google_username IS NOT NULL AND dm.google_username != ''
+                         THEN dm.google_username ELSE NULL END,
+                    'member', 1, datetime('now'),
+                    'off', 'off', 0, 1
+                FROM d4h_members dm
+                WHERE dm.status != 'Retired'
+                  AND dm.id NOT IN (SELECT d4h_id FROM users WHERE d4h_id IS NOT NULL)
+            '''))
+
+        # ── Migrate d4h_hours: d4h_member_id → user_id ────────────────────────
+        d4h_hours_cols = [r[1] for r in conn.execute(sql('PRAGMA table_info(d4h_hours)'))]
+        if 'd4h_member_id' in d4h_hours_cols:
+            conn.execute(sql('''
+                CREATE TABLE d4h_hours_new (
+                    id INTEGER PRIMARY KEY,
+                    d4h_attendance_id INTEGER NOT NULL UNIQUE,
+                    user_id INTEGER NOT NULL REFERENCES users(id),
+                    activity_type TEXT NOT NULL,
+                    d4h_activity_id INTEGER NOT NULL,
+                    activity_name TEXT,
+                    hour_type TEXT NOT NULL DEFAULT 'none',
+                    date DATE NOT NULL,
+                    hours NUMERIC NOT NULL,
+                    synced_at DATETIME NOT NULL
+                )
+            '''))
+            conn.execute(sql('''
+                INSERT INTO d4h_hours_new
+                    (id, d4h_attendance_id, user_id, activity_type, d4h_activity_id,
+                     activity_name, hour_type, date, hours, synced_at)
+                SELECT
+                    dh.id, dh.d4h_attendance_id,
+                    u.id,
+                    dh.activity_type, dh.d4h_activity_id, dh.activity_name,
+                    dh.hour_type, dh.date, dh.hours, dh.synced_at
+                FROM d4h_hours dh
+                JOIN users u ON u.d4h_id = dh.d4h_member_id
+            '''))
+            conn.execute(sql('DROP TABLE d4h_hours'))
+            conn.execute(sql('ALTER TABLE d4h_hours_new RENAME TO d4h_hours'))
+
+        # ── Recreate users without email/username/d4h_member_id ───────────────
+        existing_user_cols = [r[1] for r in conn.execute(sql('PRAGMA table_info(users)'))]
+        if 'email' in existing_user_cols or 'd4h_member_id' in existing_user_cols:
+            # ensure google_username is populated from username if still missing
+            if 'username' in existing_user_cols and 'google_username' in existing_user_cols:
                 conn.execute(sql('''
-                    CREATE TABLE users_new (
-                        id INTEGER PRIMARY KEY,
-                        google_sub TEXT UNIQUE,
-                        email TEXT NOT NULL UNIQUE,
-                        username TEXT NOT NULL,
-                        display_name TEXT NOT NULL,
-                        role TEXT NOT NULL DEFAULT 'member',
-                        d4h_member_id INTEGER REFERENCES d4h_members(id),
-                        is_active INTEGER NOT NULL DEFAULT 1,
-                        created_at DATETIME NOT NULL,
-                        last_login_at DATETIME,
-                        notify_approval TEXT NOT NULL DEFAULT 'weekly',
-                        notify_pending TEXT NOT NULL DEFAULT 'weekly',
-                        notify_monthly_summary INTEGER NOT NULL DEFAULT 0,
-                        notify_tax_credit INTEGER NOT NULL DEFAULT 1,
-                        last_weekly_sent DATETIME,
-                        tax_credit_notified_year INTEGER
-                    )
+                    UPDATE users SET google_username = username
+                    WHERE google_username IS NULL AND username IS NOT NULL
+                      AND username NOT LIKE 'd4h_%'
                 '''))
-                conn.execute(sql('''
-                    INSERT INTO users_new
-                        (id, google_sub, email, username, display_name, role,
-                         d4h_member_id, is_active, created_at, last_login_at,
-                         notify_approval, notify_pending, notify_monthly_summary,
-                         notify_tax_credit, last_weekly_sent, tax_credit_notified_year)
-                    SELECT
-                        id, google_sub, email, username, display_name, role,
-                        d4h_member_id, is_active, created_at, last_login_at,
-                        COALESCE(notify_approval, 'weekly'),
-                        COALESCE(notify_pending, 'weekly'),
-                        COALESCE(notify_monthly_summary, 0),
-                        COALESCE(notify_tax_credit, 1),
-                        last_weekly_sent,
-                        tax_credit_notified_year
-                    FROM users
-                '''))
-                conn.execute(sql('DROP TABLE users'))
-                conn.execute(sql('ALTER TABLE users_new RENAME TO users'))
-                conn.execute(sql('PRAGMA foreign_keys=ON'))
+            conn.execute(sql('''
+                CREATE TABLE users_new (
+                    id INTEGER PRIMARY KEY,
+                    d4h_id INTEGER UNIQUE,
+                    ref TEXT,
+                    display_name TEXT NOT NULL,
+                    d4h_status TEXT,
+                    count_rolling_hours INTEGER,
+                    last_synced_at DATETIME,
+                    google_sub TEXT UNIQUE,
+                    google_username TEXT,
+                    role TEXT NOT NULL DEFAULT 'member',
+                    is_active INTEGER NOT NULL DEFAULT 1,
+                    created_at DATETIME NOT NULL,
+                    last_login_at DATETIME,
+                    notify_approval TEXT NOT NULL DEFAULT 'off',
+                    notify_pending TEXT NOT NULL DEFAULT 'off',
+                    notify_monthly_summary INTEGER NOT NULL DEFAULT 0,
+                    notify_tax_credit INTEGER NOT NULL DEFAULT 1,
+                    last_weekly_sent DATETIME,
+                    tax_credit_notified_year INTEGER
+                )
+            '''))
+            conn.execute(sql('''
+                INSERT INTO users_new
+                    (id, d4h_id, ref, display_name, d4h_status, count_rolling_hours,
+                     last_synced_at, google_sub, google_username, role, is_active,
+                     created_at, last_login_at, notify_approval, notify_pending,
+                     notify_monthly_summary, notify_tax_credit, last_weekly_sent,
+                     tax_credit_notified_year)
+                SELECT
+                    id, d4h_id, ref, display_name, d4h_status, count_rolling_hours,
+                    last_synced_at, google_sub, google_username, role, is_active,
+                    created_at, last_login_at,
+                    COALESCE(notify_approval, 'off'),
+                    COALESCE(notify_pending,  'off'),
+                    COALESCE(notify_monthly_summary, 0),
+                    COALESCE(notify_tax_credit, 1),
+                    last_weekly_sent, tax_credit_notified_year
+                FROM users
+            '''))
+            conn.execute(sql('DROP TABLE users'))
+            conn.execute(sql('ALTER TABLE users_new RENAME TO users'))
 
-        # ── 2. Drop old history and records tables ────────────────────────────
-        # Check if old record_history references hours_records (old schema)
-        rh_cols = [r[1] for r in conn.execute(sql('PRAGMA table_info(record_history)'))]
-        if 'record_id' in rh_cols:
-            conn.execute(sql('DROP TABLE IF EXISTS record_history'))
+        # ── Drop d4h_members ──────────────────────────────────────────────────
+        if d4h_members_exists:
+            conn.execute(sql('DROP TABLE d4h_members'))
 
-        # Drop old hours_records if it has old schema (category_id column = old model)
-        hr_cols = [r[1] for r in conn.execute(sql('PRAGMA table_info(hours_records)'))]
-        if 'category_id' in hr_cols:
-            conn.execute(sql('DROP TABLE IF EXISTS hours_records'))
-
-        # Drop hours_entries if it exists with wrong schema (shouldn't happen, but safe)
-        # Let create_all() create hours_entries, new hours_records, record_history fresh
-
+        conn.execute(sql('PRAGMA foreign_keys=ON'))
         conn.commit()
 
-    # ── 3. create_all() creates new tables ───────────────────────────────────
+    # create_all adds any tables/columns not yet present
     from models import Base
     Base.metadata.create_all(_engine)
 
     with _engine.connect() as conn:
-        # ── 4. Notify preference defaults ────────────────────────────────────
-        conn.execute(sql("UPDATE users SET notify_approval = 'weekly' WHERE notify_approval = 'off'"))
-        conn.execute(sql("UPDATE users SET notify_pending  = 'weekly' WHERE notify_pending  = 'off'"))
-
-        # ── 5. Seed system categories ─────────────────────────────────────────
+        # ── Seed system categories ─────────────────────────────────────────────
         for ht in ('primary', 'secondary', 'other'):
             exists = conn.execute(sql(
                 f"SELECT id FROM categories WHERE is_system=1 AND hour_type='{ht}'"
@@ -130,7 +206,7 @@ def run_migrations() -> None:
                     f"VALUES ('System: {ht.capitalize()}', '{ht}', 1, 1, datetime('now'))"
                 ))
 
-        # ── 6. Seed default settings ──────────────────────────────────────────
+        # ── Seed default settings ──────────────────────────────────────────────
         from settings import DEFAULTS
         for key, value in DEFAULTS.items():
             existing = conn.execute(sql(f"SELECT key FROM settings WHERE key = '{key}'")).fetchone()

@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}{{ member.name }}{% endblock %}
+{% block title %}{{ member.display_name }}{% endblock %}
 {% block container_class %}wide{% endblock %}
 {% block head %}
 <style>
@@ -15,11 +15,11 @@
 
 <div class="page-header">
   <div>
-    <h1>{{ member.name }}</h1>
+    <h1>{{ member.display_name }}</h1>
     <div style="font-size:0.82rem;color:var(--muted);margin-top:2px">
       Ref {{ member.ref }}
-      &nbsp;·&nbsp; {{ member.status }}
-      {% if member.user %}&nbsp;·&nbsp; {{ member.user.email }}{% endif %}
+      &nbsp;·&nbsp; {{ member.d4h_status }}
+      {% if member.email %}&nbsp;·&nbsp; {{ member.email }}{% endif %}
     </div>
   </div>
   <div style="display:flex;gap:8px;align-items:center">

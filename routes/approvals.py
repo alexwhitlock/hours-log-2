@@ -17,7 +17,7 @@ def _push_to_d4h(db, record) -> None:
     entry = record.entry
     if not entry:
         return
-    if not record.user or not record.user.d4h_member_id:
+    if not record.user or not record.user.d4h_id:
         return
     if not entry.category or entry.category.hour_type.value not in ('primary', 'secondary', 'other'):
         return
@@ -45,8 +45,8 @@ def _check_tax_credit_milestone(db, user):
 
     from d4h_sync import hours_by_year
     from settings import get_eligibility_settings, check_eligibility
-    d4h_hours = db.query(D4HHours).filter_by(d4h_member_id=user.d4h_member_id).all() \
-        if user.d4h_member_id else []
+    d4h_hours = db.query(D4HHours).filter_by(user_id=user.id).all() \
+        if user.d4h_id else []
     tool_records = db.query(HoursRecord).filter_by(user_id=user.id).all()
     summary = hours_by_year(d4h_hours, tool_records, year)
     es = get_eligibility_settings(db)

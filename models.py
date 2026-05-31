@@ -6,6 +6,13 @@ from sqlalchemy import (Boolean, Column, Date, DateTime, Enum as SQLEnum,
                         UniqueConstraint)
 from sqlalchemy.orm import DeclarativeBase, relationship
 
+_EMAIL_DOMAIN = 'sbo-ovsar.ca'
+
+
+def set_email_domain(domain: str) -> None:
+    global _EMAIL_DOMAIN
+    _EMAIL_DOMAIN = domain
+
 
 class Base(DeclarativeBase):
     pass
@@ -32,35 +39,12 @@ class HourType(str, enum.Enum):
     none = 'none'
 
 
-class D4HMember(Base):
-    __tablename__ = 'd4h_members'
-
-    id = Column(Integer, primary_key=True)
-    ref = Column(String(32), nullable=False, index=True)
-    name = Column(String(256), nullable=False)
-    email = Column(String(256), nullable=True)
-    google_username = Column(String(64), nullable=True, index=True)
-    status = Column(String(32), nullable=False, default='Operational')
-    count_rolling_hours = Column(Integer, nullable=True)
-    last_synced_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.now)
-    updated_at = Column(DateTime, nullable=False, default=datetime.now,
-                        onupdate=datetime.now)
-
-    user = relationship('User', back_populates='d4h_member', uselist=False)
-    d4h_hours = relationship('D4HHours', back_populates='d4h_member')
-
-    @property
-    def is_active(self):
-        return self.status != 'Retired'
-
-
 class D4HHours(Base):
     __tablename__ = 'd4h_hours'
 
     id = Column(Integer, primary_key=True)
     d4h_attendance_id = Column(Integer, unique=True, nullable=False, index=True)
-    d4h_member_id = Column(Integer, ForeignKey('d4h_members.id'), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
     activity_type = Column(String(16), nullable=False)
     d4h_activity_id = Column(Integer, nullable=False)
     activity_name = Column(String(256), nullable=True)
@@ -69,7 +53,7 @@ class D4HHours(Base):
     hours = Column(Numeric(6, 2), nullable=False)
     synced_at = Column(DateTime, nullable=False, default=datetime.now)
 
-    d4h_member = relationship('D4HMember', back_populates='d4h_hours')
+    user = relationship('User', back_populates='d4h_hours')
 
 
 class NotifyPref(str, enum.Enum):
@@ -83,12 +67,21 @@ class User(Base):
     __tablename__ = 'users'
 
     id = Column(Integer, primary_key=True)
-    google_sub = Column(String(128), unique=True, nullable=True, index=True)
-    email = Column(String(256), unique=True, nullable=False, index=True)
-    username = Column(String(64), nullable=False)
+
+    # D4H identity (synced from D4H)
+    d4h_id = Column(Integer, unique=True, nullable=True, index=True)
+    ref = Column(String(32), nullable=True, index=True)
     display_name = Column(String(256), nullable=False)
+    d4h_status = Column(String(32), nullable=True, default='Operational')
+    count_rolling_hours = Column(Integer, nullable=True)
+    last_synced_at = Column(DateTime, nullable=True)
+
+    # Google login
+    google_sub = Column(String(128), unique=True, nullable=True, index=True)
+    google_username = Column(String(64), nullable=True, index=True)
+
+    # App
     role = Column(SQLEnum(UserRole, native_enum=False), nullable=False, default=UserRole.member)
-    d4h_member_id = Column(Integer, ForeignKey('d4h_members.id'), nullable=True, index=True)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, nullable=False, default=datetime.now)
     last_login_at = Column(DateTime, nullable=True)
@@ -107,7 +100,17 @@ class User(Base):
                                      foreign_keys='HoursEntry.submitted_by')
     approved_entries = relationship('HoursEntry', back_populates='approver_user',
                                     foreign_keys='HoursEntry.approved_by')
-    d4h_member = relationship('D4HMember', back_populates='user')
+    d4h_hours = relationship('D4HHours', back_populates='user')
+
+    @property
+    def email(self):
+        if self.google_username:
+            return f"{self.google_username}@{_EMAIL_DOMAIN}"
+        return None
+
+    @property
+    def username(self):
+        return self.google_username
 
 
 class Category(Base):

@@ -23,11 +23,11 @@
 <!-- Mobile: cards -->
 <div class="mobile-only" id="users-cards">
   {% for u in users %}
-  <div class="record-card" data-search="{{ u.display_name|lower }} {{ u.email|lower }}" {% if not u.is_active %}style="opacity:.5"{% endif %}>
+  <div class="record-card" data-search="{{ u.display_name|lower }} {{ (u.email or '')|lower }}" {% if not u.is_active %}style="opacity:.5"{% endif %}>
     <div class="record-card-top">
       <div>
         <div class="record-card-cat">{{ u.display_name }}</div>
-        <div class="record-card-meta" style="margin-top:2px">{{ u.email }}</div>
+        <div class="record-card-meta" style="margin-top:2px">{{ u.email or u.ref or '—' }}</div>
         <div style="font-size:0.75rem;color:var(--muted);margin-top:2px">Last login: {{ u.last_login_at.strftime('%b %d, %Y') if u.last_login_at else 'Never' }}</div>
       </div>
       <div>{% if u.is_active %}<span class="badge badge-approved">Active</span>{% else %}<span class="badge badge-draft">Inactive</span>{% endif %}</div>
@@ -56,9 +56,9 @@
     </thead>
     <tbody id="users-body">
       {% for u in users %}
-      <tr data-search="{{ u.display_name|lower }} {{ u.email|lower }}" {% if not u.is_active %}style="opacity:.5"{% endif %}>
+      <tr data-search="{{ u.display_name|lower }} {{ (u.email or '')|lower }}" {% if not u.is_active %}style="opacity:.5"{% endif %}>
         <td style="font-weight:600">{{ u.display_name }}</td>
-        <td style="font-size:0.85rem">{{ u.email }}</td>
+        <td style="font-size:0.85rem">{{ u.email or u.ref or '—' }}</td>
         <td>
           <form method="POST" action="/admin/users/{{ u.id }}/role" style="display:inline">
             <select name="role" onchange="this.form.submit()" style="width:auto;padding:6px 28px 6px 8px;font-size:0.85rem;border-radius:6px">

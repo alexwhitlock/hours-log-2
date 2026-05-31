@@ -216,7 +216,7 @@ def _fetch_member_attendance(config: dict, member_id: int, tag_cache: dict,
 # ── Member sync ───────────────────────────────────────────────────────────────
 
 def sync_members(config: dict, db, progress=None) -> dict:
-    from models import D4HMember, User, UserRole
+    from models import User, UserRole
 
     if progress:
         progress('Fetching members from D4H…', 2)
@@ -230,82 +230,59 @@ def sync_members(config: dict, db, progress=None) -> dict:
     for m in raw_members:
         mid = int(m.id)
         current_rolling = m._raw.get('countRollingHours')
-        existing = db.get(D4HMember, mid)
         norm = _norm_status(m.status)
+        google_username = m.google_account.lower() if m.google_account else None
+
+        existing = db.query(User).filter_by(d4h_id=mid).first()
 
         if existing:
             if existing.count_rolling_hours != current_rolling:
                 changed_ids.add(mid)
-            was_retired = existing.status == 'Retired'
+            was_retired = existing.d4h_status == 'Retired'
             is_retired = norm == 'Retired'
             existing.ref = m.ref or 'No Reference'
-            existing.name = m.full_name
-            existing.email = m.email or None
-            existing.google_username = m.google_account.lower() if m.google_account else None
-            existing.status = norm
+            existing.display_name = m.full_name
+            existing.google_username = google_username or existing.google_username
+            existing.d4h_status = norm
             existing.count_rolling_hours = current_rolling
             existing.last_synced_at = datetime.now()
-            if not was_retired and is_retired:
-                user = db.query(User).filter_by(d4h_member_id=mid).first()
-                if user and user.is_active:
-                    user.is_active = False
-                    deactivated += 1
-            elif was_retired and not is_retired:
-                user = db.query(User).filter_by(d4h_member_id=mid).first()
-                if user and not user.is_active:
-                    user.is_active = True
-                    reactivated += 1
+            if not was_retired and is_retired and existing.is_active:
+                existing.is_active = False
+                deactivated += 1
+            elif was_retired and not is_retired and not existing.is_active:
+                existing.is_active = True
+                reactivated += 1
             updated += 1
         else:
             changed_ids.add(mid)
-            db.add(D4HMember(
-                id=mid,
-                ref=m.ref or 'No Reference',
-                name=m.full_name,
-                email=m.email or None,
-                google_username=m.google_account.lower() if m.google_account else None,
-                status=norm,
-                count_rolling_hours=current_rolling,
-                last_synced_at=datetime.now(),
-            ))
-            added += 1
-
-    db.flush()
-
-    for user in db.query(User).filter(User.d4h_member_id == None).all():
-        d4h = db.query(D4HMember).filter_by(
-            google_username=user.username.lower()).first()
-        if d4h:
-            user.d4h_member_id = d4h.id
-            linked += 1
-
-    db.commit()
-
-    # Auto-create User records for D4H members that don't have one
-    for m in raw_members:
-        mid = int(m.id)
-        existing_user = db.query(User).filter_by(d4h_member_id=mid).first()
-        if not existing_user and _norm_status(m.status) != 'Retired':
-            username = m.google_account.lower() if m.google_account else f'd4h_{mid}'
-            # Use email from d4h member or construct a placeholder
-            email = m.email or None
-            if not email:
-                # Skip creating user without email — they can't log in anyway
-                # but we need a unique placeholder for the unique constraint
-                email = f'd4h_{mid}@d4h.placeholder'
-            # Check if username or email already taken
-            existing_by_username = db.query(User).filter_by(username=username).first()
-            existing_by_email = db.query(User).filter_by(email=email).first()
-            if not existing_by_username and not existing_by_email:
+            if norm == 'Retired':
+                continue
+            # Link to existing user by google_username if possible
+            user = None
+            if google_username:
+                user = db.query(User).filter_by(google_username=google_username).first()
+            if user:
+                user.d4h_id = mid
+                user.ref = m.ref or 'No Reference'
+                user.display_name = m.full_name
+                user.d4h_status = norm
+                user.count_rolling_hours = current_rolling
+                user.last_synced_at = datetime.now()
+                linked += 1
+            else:
                 db.add(User(
-                    google_sub=None,
-                    email=email,
-                    username=username,
+                    d4h_id=mid,
+                    ref=m.ref or 'No Reference',
                     display_name=m.full_name,
+                    google_username=google_username,
+                    d4h_status=norm,
+                    count_rolling_hours=current_rolling,
+                    last_synced_at=datetime.now(),
                     role=UserRole.member,
-                    d4h_member_id=mid,
                     is_active=True,
                 ))
+                added += 1
+
     db.commit()
 
     logger.info(
@@ -323,7 +300,7 @@ def sync_members(config: dict, db, progress=None) -> dict:
 # ── Hours sync ────────────────────────────────────────────────────────────────
 
 def sync_hours(config: dict, db, changed_member_ids=None, progress=None) -> dict:
-    from models import D4HMember, D4HHours, HourType, D4HSubmissionEvent
+    from models import User, D4HHours, HourType, D4HSubmissionEvent
 
     tag_cache = _build_activity_tag_cache(config, progress=progress)
     if not tag_cache:
@@ -338,9 +315,11 @@ def sync_hours(config: dict, db, changed_member_ids=None, progress=None) -> dict
     if submission_event_ids:
         logger.info(f'D4H sync: skipping {len(submission_event_ids)} submission event IDs')
 
-    all_members = db.query(D4HMember).filter(D4HMember.status != 'Retired').all()
+    all_members = db.query(User).filter(
+        User.d4h_id != None, User.d4h_status != 'Retired'
+    ).all()
     if changed_member_ids is not None:
-        to_sync = [m for m in all_members if m.id in changed_member_ids]
+        to_sync = [m for m in all_members if m.d4h_id in changed_member_ids]
     else:
         to_sync = all_members
 
@@ -358,19 +337,19 @@ def sync_hours(config: dict, db, changed_member_ids=None, progress=None) -> dict
     attendance_by_member = {}
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
         futures = {
-            ex.submit(_fetch_member_attendance, config, m.id, tag_cache,
-                      submission_event_ids): m.id
+            ex.submit(_fetch_member_attendance, config, m.d4h_id, tag_cache,
+                      submission_event_ids): m
             for m in to_sync
         }
         done = 0
         for future in as_completed(futures):
-            member_id = futures[future]
+            member = futures[future]
             done += 1
             try:
-                attendance_by_member[member_id] = future.result()
+                attendance_by_member[member] = future.result()
             except Exception as e:
-                logger.error(f'D4H sync: member {member_id} failed: {e}')
-                attendance_by_member[member_id] = []
+                logger.error(f'D4H sync: member {member.d4h_id} failed: {e}')
+                attendance_by_member[member] = []
             if progress and done % 5 == 0:
                 pct = 26 + int(68 * done / len(to_sync))
                 progress(f'Fetching attendance ({done}/{len(to_sync)} members)…', pct)
@@ -381,7 +360,7 @@ def sync_hours(config: dict, db, changed_member_ids=None, progress=None) -> dict
     # Bulk upsert — commit per member so progress stays live
     total_members = len(attendance_by_member)
     upserted = 0
-    for done_count, (member_id, records) in enumerate(attendance_by_member.items(), 1):
+    for done_count, (member, records) in enumerate(attendance_by_member.items(), 1):
         if progress:
             pct = 95 + int(4 * done_count / total_members)
             progress(f'Saving to database ({done_count}/{total_members})…', pct)
@@ -399,7 +378,7 @@ def sync_hours(config: dict, db, changed_member_ids=None, progress=None) -> dict
             else:
                 db.add(D4HHours(
                     d4h_attendance_id=rec['attendance_id'],
-                    d4h_member_id=member_id,
+                    user_id=member.id,
                     activity_type=rec['activity_type'],
                     d4h_activity_id=rec['activity_id'],
                     activity_name=rec['activity_name'],

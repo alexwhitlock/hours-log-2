@@ -42,10 +42,10 @@
 <!-- Mobile: cards -->
 <div class="mobile-only" id="report-cards">
   {% for row in rows %}
-  <div class="record-card" data-search="{{ row.member.name|lower }} {{ row.member.ref|lower }}">
+  <div class="record-card" data-search="{{ row.member.display_name|lower }} {{ row.member.ref|lower }}">
     <div class="record-card-top">
       <div>
-        <div class="record-card-cat">{{ row.member.name }}</div>
+        <div class="record-card-cat">{{ row.member.display_name }}</div>
         <div class="record-card-meta">Ref {{ row.member.ref }}</div>
       </div>
       <div style="text-align:right">
@@ -91,8 +91,8 @@
       {% set ns.ot = ns.ot + row.o_tool %}
       {% set ns.tc = ns.tc + row.tax_credit %}
       {% set ns.tot = ns.tot + row.total %}
-      <tr data-vals="{{ row.member.name }}|{{ row.member.ref }}|{{ row.p_d4h }}|{{ row.p_tool }}|{{ row.s_d4h }}|{{ row.s_tool }}|{{ row.o_d4h }}|{{ row.o_tool }}|{{ row.tax_credit }}|{{ row.total }}">
-        <td style="font-weight:600"><a href="/admin/members/{{ row.member.id }}?year={{ year }}" style="color:inherit;text-decoration:none;border-bottom:1px solid var(--border)">{{ row.member.name }}</a></td>
+      <tr data-vals="{{ row.member.display_name }}|{{ row.member.ref }}|{{ row.p_d4h }}|{{ row.p_tool }}|{{ row.s_d4h }}|{{ row.s_tool }}|{{ row.o_d4h }}|{{ row.o_tool }}|{{ row.tax_credit }}|{{ row.total }}">
+        <td style="font-weight:600"><a href="/admin/members/{{ row.member.id }}?year={{ year }}" style="color:inherit;text-decoration:none;border-bottom:1px solid var(--border)">{{ row.member.display_name }}</a></td>
         <td>{{ row.member.ref }}</td>
         <td class="col-group">{{ '%.1f'|format(row.p_d4h) }}</td>
         <td>{{ '%.1f'|format(row.p_tool) }}</td>

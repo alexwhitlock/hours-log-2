@@ -233,9 +233,9 @@ def profile():
     draft_count = sum(1 for r in tool_records if r.entry and r.entry.status == RecordStatus.draft)
 
     d4h_hours_list = []
-    if user.d4h_member_id:
+    if user.d4h_id:
         d4h_hours_list = db.query(D4HHours).filter_by(
-            d4h_member_id=user.d4h_member_id).all()
+            user_id=user.id).all()
 
     summary = hours_by_year(d4h_hours_list, tool_records, year)
     years = list(range(2026, date_cls.today().year + 1))
@@ -248,7 +248,7 @@ def profile():
                            summary=summary, year=year, years=years,
                            pending_count=pending_count,
                            draft_count=draft_count,
-                           has_d4h=user.d4h_member_id is not None,
+                           has_d4h=user.d4h_id is not None,
                            es=es, hours_ok=hours_ok, primary_ok=primary_ok)
 
 
@@ -260,9 +260,9 @@ def attendance():
     user = db.get(User, session['user_id'])
 
     d4h_hours = []
-    if user.d4h_member_id:
+    if user.d4h_id:
         d4h_hours = (db.query(D4HHours)
-                     .filter_by(d4h_member_id=user.d4h_member_id)
+                     .filter_by(user_id=user.id)
                      .order_by(D4HHours.date.desc())
                      .all())
 

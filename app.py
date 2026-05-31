@@ -78,6 +78,8 @@ def create_app() -> Flask:
 
     from mail import init_mail
     init_mail(config)
+    from models import set_email_domain
+    set_email_domain(config.get('ALLOWED_DOMAIN', 'sbo-ovsar.ca'))
 
     # Create all tables (no Alembic needed for SQLite)
     from models import Base
@@ -134,7 +136,7 @@ def create_app() -> Flask:
         return {
             'current_role': session.get('role', ''),
             'current_name': session.get('display_name', ''),
-            'current_email': session.get('email', ''),
+            'current_email': session.get('email', '') or '',
         }
 
     @app.errorhandler(403)
@@ -221,12 +223,11 @@ def _send_monthly_progress_summaries(app) -> None:
         users = db.query(User).filter(
             User.is_active == True,
             User.last_login_at != None,
-            ~User.email.like('%@d4h.placeholder'),
             User.notify_monthly_summary == True,
         ).all()
         for user in users:
             d4h_hours = db.query(D4HHours).filter_by(
-                d4h_member_id=user.d4h_member_id).all() if user.d4h_member_id else []
+                user_id=user.id).all() if user.d4h_id else []
             # tool_records is now list of HoursRecord; hours_by_year reads via record.entry
             tool_records = db.query(HoursRecord).filter_by(user_id=user.id).all()
             summary = hours_by_year(d4h_hours, tool_records, year)
@@ -268,7 +269,6 @@ def _send_summaries(app: 'Flask') -> None:
         users = db.query(User).filter(
             User.is_active == True,
             User.last_login_at != None,
-            ~User.email.like('%@d4h.placeholder'),
             User.notify_approval.in_([NotifyPref.daily, NotifyPref.weekly]),
         ).all()
         year = datetime.now().year
@@ -279,7 +279,7 @@ def _send_summaries(app: 'Flask') -> None:
                 continue
             tool_records = db.query(HoursRecord).filter_by(user_id=user.id).all()
             d4h_hours = db.query(D4HHours).filter_by(
-                d4h_member_id=user.d4h_member_id).all() if user.d4h_member_id else []
+                user_id=user.id).all() if user.d4h_id else []
             summary = hours_by_year(d4h_hours, tool_records, year)
             pending = sum(
                 1 for r in tool_records

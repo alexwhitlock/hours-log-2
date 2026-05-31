@@ -97,10 +97,10 @@
       <div style="font-size:0.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Role</div>
       <span class="badge badge-approved">{{ user.role.value|capitalize }}</span>
     </div>
-    {% if user.d4h_member %}
+    {% if user.ref %}
     <div>
       <div style="font-size:0.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">D4H Ref</div>
-      <div style="font-size:0.9rem;font-family:monospace">{{ user.d4h_member.ref }}</div>
+      <div style="font-size:0.9rem;font-family:monospace">{{ user.ref }}</div>
     </div>
     {% endif %}
     <div>

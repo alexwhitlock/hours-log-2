@@ -9,7 +9,7 @@ from flask import (Blueprint, abort, current_app, flash, jsonify, redirect,
 from auth import require_role
 from db import get_db
 from models import (AdminRole, AdminRoleAssignment, Category, CategoryApprover,
-                    D4HHours, D4HMember, EntryHistory, HourType, HoursEntry,
+                    D4HHours, EntryHistory, HourType, HoursEntry,
                     HoursRecord, RecordStatus, User, UserRole)
 
 logger = logging.getLogger(__name__)
@@ -21,15 +21,15 @@ admin_bp = Blueprint('admin', __name__)
 def index():
     db = get_db()
     from sqlalchemy import func
-    last_sync = db.query(func.max(D4HMember.last_synced_at)).scalar()
+    last_sync = db.query(func.max(User.last_synced_at)).scalar()
     return render_template('admin/index.html',
         pending=db.query(HoursEntry).filter_by(status=RecordStatus.pending).count(),
         total_records=db.query(HoursEntry).count(),
         total_users=db.query(User).filter_by(is_active=True).count(),
         total_categories=db.query(Category).filter(
             Category.is_active == True, Category.is_system == False).count(),
-        total_d4h_members=db.query(D4HMember).filter(
-            D4HMember.status != 'Retired').count(),
+        total_d4h_members=db.query(User).filter(
+            User.d4h_id != None, User.d4h_status != 'Retired').count(),
         last_sync=last_sync,
         d4h_needs_resync_count=db.query(HoursRecord).filter_by(
             d4h_needs_resync=True).count(),
@@ -374,9 +374,8 @@ def sync():
     force = request.form.get('force') == '1'
     if force:
         db = get_db()
-        from models import D4HHours, D4HMember
         db.query(D4HHours).delete()
-        db.query(D4HMember).update({'count_rolling_hours': None})
+        db.query(User).filter(User.d4h_id != None).update({'count_rolling_hours': None})
         db.commit()
         logger.info('Force resync: cleared D4HHours and reset rolling hours')
     _sync_status.update({
@@ -402,10 +401,9 @@ def hours_report():
     db = get_db()
     year = int(request.args.get('year', date.today().year))
 
-    members = db.query(D4HMember).filter(
-        D4HMember.status != 'Retired').order_by(D4HMember.name).all()
+    members = db.query(User).filter(
+        User.d4h_id != None, User.d4h_status != 'Retired').order_by(User.display_name).all()
 
-    # Query HoursRecord joined to HoursEntry for approved/submitted
     from models import HoursEntry as _HE
     tool_records = (
         db.query(HoursRecord)
@@ -414,26 +412,24 @@ def hours_report():
         .all()
     )
 
-    tool_by_member = {}
+    tool_by_user = {}
     for r in tool_records:
         e = r.entry
         if not e or e.date.year != year:
             continue
-        mid = r.user.d4h_member_id if r.user else None
-        if mid:
-            tool_by_member.setdefault(mid, []).append(r)
+        tool_by_user.setdefault(r.user_id, []).append(r)
 
-    d4h_by_member = {}
+    d4h_by_user = {}
     for h in db.query(D4HHours).filter(
         D4HHours.date >= date(year, 1, 1),
         D4HHours.date <= date(year, 12, 31),
     ).all():
-        d4h_by_member.setdefault(h.d4h_member_id, []).append(h)
+        d4h_by_user.setdefault(h.user_id, []).append(h)
 
     rows = []
     for m in members:
-        d4h_hrs = d4h_by_member.get(m.id, [])
-        tool_hrs = tool_by_member.get(m.id, [])
+        d4h_hrs = d4h_by_user.get(m.id, [])
+        tool_hrs = tool_by_user.get(m.id, [])
 
         def _d4h(types):
             return sum((float(h.hours) for h in d4h_hrs if h.hour_type.value in types), 0.0)
@@ -456,7 +452,7 @@ def hours_report():
 
         rows.append({
             'member': m,
-            'has_login': m.user is not None and m.user.google_sub is not None,
+            'has_login': m.google_sub is not None,
             'p_d4h': p_d4h, 'p_tool': p_tool,
             's_d4h': s_d4h, 's_tool': s_tool,
             'o_d4h': o_d4h, 'o_tool': o_tool,
@@ -479,7 +475,7 @@ def hours_report():
 @require_role('admin')
 def member_detail(member_id):
     db = get_db()
-    member = db.get(D4HMember, member_id)
+    member = db.get(User, member_id)
     if not member:
         abort(404)
 
@@ -487,15 +483,11 @@ def member_detail(member_id):
     years = list(range(2026, date.today().year + 1))
 
     d4h_hours = (db.query(D4HHours)
-                 .filter_by(d4h_member_id=member_id)
+                 .filter_by(user_id=member_id)
                  .order_by(D4HHours.date.desc())
                  .all())
 
-    tool_records = []
-    if member.user:
-        tool_records = (db.query(HoursRecord)
-                        .filter_by(user_id=member.user.id)
-                        .all())
+    tool_records = db.query(HoursRecord).filter_by(user_id=member_id).all()
 
     # Year summary
     from d4h_sync import hours_by_year

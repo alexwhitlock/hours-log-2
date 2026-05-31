@@ -57,24 +57,21 @@ def callback():
 
     google_sub = info['sub']
     display_name = info.get('name', email)
-    google_username = email.split('@')[0]
+    google_username = email.split('@')[0].lower()
 
     db = get_db()
     user = db.query(User).filter_by(google_sub=google_sub).first()
 
     if not user:
-        # Try to find by username (pre-created from D4H sync)
-        user = db.query(User).filter_by(username=google_username.lower()).first()
+        # Find by google_username (pre-created from D4H sync)
+        user = db.query(User).filter_by(google_username=google_username).first()
         if user:
             user.google_sub = google_sub
-            user.email = email
-            db.commit()
 
     if not user:
         user = User(
             google_sub=google_sub,
-            email=email,
-            username=google_username,
+            google_username=google_username,
             display_name=display_name,
             role=UserRole.member,
         )
@@ -82,17 +79,10 @@ def callback():
     else:
         if not user.is_active:
             abort(403, 'Your account has been deactivated.')
-        user.display_name = display_name
-        user.last_login_at = datetime.now()
+        user.google_username = google_username
 
-    # Link to D4H member by google_username if not already linked
-    if not user.d4h_member_id:
-        from models import D4HMember
-        d4h_member = db.query(D4HMember).filter_by(
-            google_username=google_username.lower()).first()
-        if d4h_member:
-            user.d4h_member_id = d4h_member.id
-
+    user.display_name = display_name
+    user.last_login_at = datetime.now()
     db.commit()
 
     session.clear()
@@ -100,7 +90,6 @@ def callback():
     session['user_id'] = user.id
     session['role'] = user.role.value
     session['display_name'] = user.display_name
-    session['email'] = user.email
 
     next_url = session.pop('next', None)
     return redirect(next_url or url_for('hours.index'))
