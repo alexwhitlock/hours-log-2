@@ -86,6 +86,7 @@ def _push_group(db, client, records: list, year: int, month: int,
             att_id = str(existing_att_id)
         else:
             sub_event = _get_or_create_event(db, client, year, month, hour_type)
+            client.set_event_published(sub_event.d4h_event_id, False)
             att = client.create_submission_attendance(
                 sub_event.d4h_event_id, member_d4h_id, total_hours, year, month,
             )

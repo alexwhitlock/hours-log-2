@@ -138,7 +138,7 @@ def edit(entry_id):
 
         db.add(EntryHistory(
             entry_id=entry.id,
-            action='submitted' if action == 'submit' else 'edited',
+            action='resubmitted' if action == 'submit' else 'edited',
             performed_by=session['user_id'],
             changes={'before': before, 'after': {
                 'date': str(entry.date), 'hours': str(entry.hours),

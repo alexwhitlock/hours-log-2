@@ -115,6 +115,20 @@ def create_app() -> Flask:
     def status_label(value):
         return 'Pushed to D4H' if value == 'submitted' else value.capitalize()
 
+    _ACTION_LABELS = {
+        'created':      'Saved as draft',
+        'submitted':    'Submitted for approval',
+        'resubmitted':  'Edited & resubmitted',
+        'edited':       'Saved as draft',
+        'approved':     'Approved',
+        'rejected':     'Rejected',
+        'pushed_to_d4h': 'Pushed to D4H',
+    }
+
+    @app.template_filter('action_label')
+    def action_label(value):
+        return _ACTION_LABELS.get(value, value.replace('_', ' ').capitalize())
+
     @app.context_processor
     def inject_user():
         return {
