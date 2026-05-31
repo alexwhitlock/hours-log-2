@@ -295,12 +295,18 @@ class D4HClient:
     def create_submission_event(self, year: int, month: int, hour_type: str) -> dict:
         """Create a monthly Hours Log placeholder event and tag it."""
         import calendar
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo('America/Toronto')
         last_day = calendar.monthrange(year, month)[1]
         label = hour_type.capitalize()
+        starts = datetime(year, month, 1, 0, 0, 0, tzinfo=tz)
+        ends   = datetime(year, month, last_day, 23, 59, 59, tzinfo=tz)
         event = self._post(f'/team/{self.team_id}/events', {
             'referenceDescription': f'Hours Log: {label} - {year:04d}-{month:02d}',
-            'startsAt': f'{year:04d}-{month:02d}-01T00:00:00Z',
-            'endsAt':   f'{year:04d}-{month:02d}-{last_day:02d}T23:59:59Z',
+            'startsAt': starts.strftime('%Y-%m-%dT%H:%M:%S%z'),
+            'endsAt':   ends.strftime('%Y-%m-%dT%H:%M:%S%z'),
+            'fullTeam': False,
         })
         tag_id = self.HOUR_TYPE_TAG.get(hour_type)
         if tag_id:
