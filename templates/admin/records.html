@@ -49,7 +49,7 @@
       </div>
       <div style="text-align:right">
         <div class="record-card-hours">{{ '%.1f'|format(e.hours|float) }} hrs</div>
-        <span class="badge badge-{{ e.status.value }}">{{ e.status.value }}</span>
+        <span class="badge badge-{{ e.status.value }}">{{ e.status.value|status_label }}</span>
       </div>
     </div>
     <div class="record-card-actions">
@@ -79,7 +79,7 @@
         <td style="font-size:0.85rem">{{ e.description or '—' }}</td>
         <td style="font-size:0.85rem">{% for r in e.records %}{{ r.user.display_name }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
         <td>
-          <span class="badge badge-{{ e.status.value }}">{{ e.status.value }}</span>
+          <span class="badge badge-{{ e.status.value }}">{{ e.status.value|status_label }}</span>
           {% set needs_resync = e.records | selectattr('d4h_needs_resync') | list %}
           {% if needs_resync %}<span class="badge badge-pending" title="Pending re-sync to D4H">⚠ resync</span>{% endif %}
         </td>

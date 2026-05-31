@@ -111,6 +111,10 @@ def create_app() -> Flask:
     app.register_blueprint(approvals_bp)
     app.register_blueprint(admin_bp)
 
+    @app.template_filter('status_label')
+    def status_label(value):
+        return 'Pushed to D4H' if value == 'submitted' else value.capitalize()
+
     @app.context_processor
     def inject_user():
         return {

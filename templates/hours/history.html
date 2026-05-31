@@ -24,7 +24,7 @@
     </div>
     <div style="text-align:right">
       <div class="record-card-hours">{{ '%.1f'|format(entry.hours|float) }} hrs</div>
-      <span class="badge badge-{{ entry.status.value }}">{{ entry.status.value }}</span>
+      <span class="badge badge-{{ entry.status.value }}">{{ entry.status.value|status_label }}</span>
     </div>
   </div>
 </div>
@@ -35,10 +35,15 @@
 <div class="card" style="margin-bottom:10px;padding:12px 14px">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
     <div>
-      <div style="font-weight:700;font-size:0.95rem;text-transform:capitalize">{{ h.action }}</div>
+      <div style="font-weight:700;font-size:0.95rem;text-transform:capitalize">{{ h.action.replace('_', ' ') }}</div>
       <div style="font-size:0.82rem;color:var(--muted);margin-top:2px">by {{ h.actor.display_name }}</div>
       {% if h.changes and h.changes.get('reason') %}
       <div style="font-size:0.82rem;color:var(--red);margin-top:4px">Reason: {{ h.changes.reason }}</div>
+      {% endif %}
+      {% if h.action == 'pushed_to_d4h' and h.changes %}
+      <div style="font-size:0.78rem;color:var(--muted);margin-top:4px">
+        <a href="https://sg1.team-manager.ca.d4h.com/team/events/view/{{ h.changes.d4h_event_id }}" target="_blank" style="color:var(--accent)">D4H event #{{ h.changes.d4h_event_id }}</a> · attendance #{{ h.changes.d4h_attendance_id }}
+      </div>
       {% endif %}
     </div>
     <div style="font-size:0.78rem;color:var(--muted);white-space:nowrap;text-align:right">

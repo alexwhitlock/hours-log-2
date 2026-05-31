@@ -32,7 +32,7 @@
       </div>
       <div style="text-align:right">
         <div class="record-card-hours">{{ '%.1f'|format(e.hours|float) }} hrs</div>
-        <span class="badge badge-{{ e.status.value }}">{{ e.status.value }}</span>
+        <span class="badge badge-{{ e.status.value }}">{{ e.status.value|status_label }}</span>
       </div>
     </div>
     <div class="record-card-actions">
@@ -63,7 +63,7 @@
         <td style="font-weight:600">{{ '%.1f'|format(e.hours|float) }}</td>
         <td style="font-size:0.85rem">{{ e.description or '—' }}</td>
         <td style="font-size:0.85rem">{% for r in entry_record_map.get(e.id, []) %}{{ r.user.display_name }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
-        <td><span class="badge badge-{{ e.status.value }}">{{ e.status.value }}</span></td>
+        <td><span class="badge badge-{{ e.status.value }}">{{ e.status.value|status_label }}</span></td>
         <td style="white-space:nowrap">
           {% if e.status.value in ('draft', 'pending') and e.submitted_by == current_user_id %}<a href="/hours/{{ e.id }}/edit" class="btn btn-outline btn-sm">Edit</a>{% endif %}
           {% if e.status.value in ('draft', 'pending') and e.submitted_by == current_user_id %}

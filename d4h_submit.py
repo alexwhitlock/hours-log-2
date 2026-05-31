@@ -92,12 +92,21 @@ def _push_group(db, client, records: list, year: int, month: int,
             client.set_event_published(sub_event.d4h_event_id, True)
             att_id = str(att['id'])
 
+        from models import EntryHistory
         for r in records:
             r.d4h_record_id = att_id
             r.d4h_needs_resync = False
-            # Mark the entry as submitted
             if r.entry:
                 r.entry.status = RecordStatus.submitted
+                db.add(EntryHistory(
+                    entry_id=r.entry.id,
+                    action='pushed_to_d4h',
+                    performed_by=r.user_id,
+                    changes={
+                        'd4h_event_id': sub_event.d4h_event_id,
+                        'd4h_attendance_id': att_id,
+                    },
+                ))
         db.commit()
         logger.info(
             f'D4H submit: {year}-{month:02d} {hour_type} '
