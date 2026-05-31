@@ -7,6 +7,10 @@
     {{ 'Access Denied' if code == 403 else 'Not Found' }}
   </h2>
   <p style="font-size:14px;color:#5f6368;margin-bottom:24px">{{ message | safe }}</p>
+  {% if code == 403 %}
+  <a href="/auth/logout" class="btn btn-outline">Return to Sign In</a>
+  {% else %}
   <a href="/hours" class="btn btn-outline">Go to My Hours</a>
+  {% endif %}
 </div>
 {% endblock %}
