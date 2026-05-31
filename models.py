@@ -93,9 +93,9 @@ class User(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.now)
     last_login_at = Column(DateTime, nullable=True)
     notify_approval = Column(SQLEnum(NotifyPref, native_enum=False), nullable=False,
-                             default=NotifyPref.weekly)
+                             default=NotifyPref.off)
     notify_pending = Column(SQLEnum(NotifyPref, native_enum=False), nullable=False,
-                            default=NotifyPref.weekly)
+                            default=NotifyPref.off)
     notify_monthly_summary = Column(Boolean, nullable=False, default=False)
     notify_tax_credit = Column(Boolean, nullable=False, default=True)
     last_weekly_sent = Column(DateTime, nullable=True)

@@ -265,6 +265,7 @@ def _send_summaries(app: 'Flask') -> None:
     try:
         users = db.query(User).filter(
             User.is_active == True,
+            User.last_login_at != None,
             User.notify_approval.in_([NotifyPref.daily, NotifyPref.weekly]),
         ).all()
         year = datetime.now().year
