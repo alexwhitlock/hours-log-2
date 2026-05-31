@@ -107,6 +107,27 @@ _submit_status: dict = {'running': False, 'result': None, 'error': None,
 _submit_lock = __import__('threading').Lock()
 
 
+@admin_bp.route('/d4h-event/<int:event_id>')
+@require_role('admin')
+def d4h_event_records(event_id):
+    db = get_db()
+    from models import D4HSubmissionEvent, EntryHistory
+    sub_event = db.query(D4HSubmissionEvent).filter_by(d4h_event_id=event_id).first()
+    if not sub_event:
+        abort(404)
+    # Find all entries pushed to this event via history
+    history_rows = db.query(EntryHistory).filter(
+        EntryHistory.action == 'pushed_to_d4h',
+    ).all()
+    entry_ids = {
+        h.entry_id for h in history_rows
+        if h.changes and str(h.changes.get('d4h_event_id')) == str(event_id)
+    }
+    entries = db.query(HoursEntry).filter(HoursEntry.id.in_(entry_ids)).all() if entry_ids else []
+    return render_template('admin/d4h_event.html',
+                           event=sub_event, entries=entries, event_id=event_id)
+
+
 @admin_bp.route('/admin/d4h-submit', methods=['POST'])
 @require_role('admin')
 def d4h_submit():

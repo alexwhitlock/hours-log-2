@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}D4H Event #{{ event_id }}{% endblock %}
+{% block container_class %}wide{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>D4H Event #{{ event_id }}</h1>
+  <a href="/admin" class="btn btn-outline btn-sm"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="vertical-align:-2px"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Admin</a>
+</div>
+
+<div class="card" style="margin-bottom:14px;padding:12px 16px;font-size:0.88rem;color:var(--muted)">
+  <strong style="color:var(--text)">{{ event.year }}-{{ '%02d'|format(event.month) }}</strong>
+  &nbsp;·&nbsp; {{ event.hour_type.value|capitalize }} hours
+  &nbsp;·&nbsp;
+  <a href="https://sg1.team-manager.ca.d4h.com/team/events/view/{{ event_id }}" target="_blank" style="color:var(--accent)">View in D4H ↗</a>
+</div>
+
+{% if entries %}
+<div class="table-wrap desktop-only">
+  <table>
+    <thead>
+      <tr><th>Member</th><th>Date</th><th>Hours</th><th>Category</th><th>Description</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      {% for e in entries %}
+      <tr>
+        <td>{% for r in e.records %}{{ r.user.display_name }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
+        <td style="white-space:nowrap">{{ e.date.strftime('%b %d, %Y') }}</td>
+        <td style="font-weight:600">{{ '%.1f'|format(e.hours|float) }}</td>
+        <td>{{ e.category.name }}</td>
+        <td style="font-size:0.85rem">{{ e.description or '—' }}</td>
+        <td><span class="badge badge-{{ e.status.value }}">{{ e.status.value|status_label }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="mobile-only">
+  {% for e in entries %}
+  <div class="record-card">
+    <div class="record-card-top">
+      <div>
+        <div class="record-card-cat">{{ e.category.name }}</div>
+        <div class="record-card-meta">{{ e.date.strftime('%b %d, %Y') }}</div>
+        <div style="font-size:0.78rem;color:var(--muted);margin-top:2px">{% for r in e.records %}{{ r.user.display_name }}{% if not loop.last %}<br>{% endif %}{% endfor %}</div>
+        {% if e.description %}<div class="record-card-desc" style="margin-top:2px">{{ e.description }}</div>{% endif %}
+      </div>
+      <div style="text-align:right">
+        <div class="record-card-hours">{{ '%.1f'|format(e.hours|float) }} hrs</div>
+        <span class="badge badge-{{ e.status.value }}">{{ e.status.value|status_label }}</span>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="empty"><div class="empty-icon">📋</div><p>No records found for this event.</p></div>
+{% endif %}
+
+{% endblock %}

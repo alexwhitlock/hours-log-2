@@ -316,6 +316,12 @@ class D4HClient:
                            {'tagIds': [tag_id]})
             except Exception as e:
                 logger.warning(f'D4H: could not set tag on event {event["id"]}: {e}')
+        try:
+            self._patch(f'/team/{self.team_id}/events/{event["id"]}', {
+                'description': f'Hours Log records: https://hours.sbo-ovsar.ca/d4h-event/{event["id"]}',
+            })
+        except Exception as e:
+            logger.warning(f'D4H: could not set description on event {event["id"]}: {e}')
         logger.info(f'D4H: created submission event {event["id"]} '
                     f'{year:04d}-{month:02d} {hour_type}')
         return event
