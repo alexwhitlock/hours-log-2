@@ -153,7 +153,7 @@ class HoursEntry(Base):
     records = relationship('HoursRecord', back_populates='entry',
                            cascade='all, delete-orphan')
     history = relationship('EntryHistory', back_populates='entry',
-                           order_by='EntryHistory.timestamp',
+                           order_by='EntryHistory.id',
                            cascade='all, delete-orphan')
     auto_role_assignment = relationship('AdminRoleAssignment', back_populates='entries')
 
