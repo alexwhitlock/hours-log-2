@@ -1,5 +1,11 @@
 {% extends 'base.html' %}
 {% block title %}D4H Event #{{ event_id }}{% endblock %}
+{% block head %}
+<style>
+  @media (max-width: 640px) { .desktop-only { display: none !important; } }
+  @media (min-width: 641px) { .mobile-only  { display: none !important; } }
+</style>
+{% endblock %}
 {% block container_class %}wide{% endblock %}
 {% block content %}
 
