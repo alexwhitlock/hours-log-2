@@ -304,11 +304,14 @@ class D4HClient:
         ends   = datetime(year, month, last_day, 23, 59, 59, tzinfo=tz).astimezone(timezone.utc)
         event = self._post(f'/team/{self.team_id}/events', {
             'referenceDescription': f'Hours Log: {label} - {year:04d}-{month:02d}',
-            'startsAt':  starts.strftime('%Y-%m-%dT%H:%M:%SZ'),
-            'endsAt':    ends.strftime('%Y-%m-%dT%H:%M:%SZ'),
-            'fullTeam':  False,
-            'published': True,
+            'startsAt': starts.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'endsAt':   ends.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'fullTeam': False,
         })
+        try:
+            self._patch(f'/team/{self.team_id}/events/{event["id"]}', {'published': True})
+        except Exception as e:
+            logger.warning(f'D4H: could not publish event {event["id"]}: {e}')
         tag_id = self.HOUR_TYPE_TAG.get(hour_type)
         if tag_id:
             try:
