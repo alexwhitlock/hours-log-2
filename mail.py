@@ -71,8 +71,8 @@ def notify_record_approved(user_email: str, user_name: str, record) -> None:
   <li><strong>Hours:</strong> {record.hours}</li>
   <li><strong>Category:</strong> {record.category.name if record.category else '—'}</li>
 </ul>
-<p><a href="https://hours2.sbo-ovsar.ca/hours">View your records</a></p>
-<p style="color:#999;font-size:0.85em">SBO-OVSAR Hours Log · <a href="https://hours2.sbo-ovsar.ca/profile">manage notifications</a></p>
+<p><a href="https://hours.sbo-ovsar.ca/hours">View your records</a></p>
+<p style="color:#999;font-size:0.85em">SBO-OVSAR Hours Log · <a href="https://hours.sbo-ovsar.ca/profile">manage notifications</a></p>
 """
     send(user_email, subject, html)
 
@@ -88,8 +88,8 @@ def notify_record_rejected(user_email: str, user_name: str, record, reason: str 
   <li><strong>Category:</strong> {record.category.name if record.category else '—'}</li>
   {'<li><strong>Reason:</strong> ' + reason + '</li>' if reason else ''}
 </ul>
-<p><a href="https://hours2.sbo-ovsar.ca/hours">View your records</a></p>
-<p style="color:#999;font-size:0.85em">SBO-OVSAR Hours Log · <a href="https://hours2.sbo-ovsar.ca/profile">manage notifications</a></p>
+<p><a href="https://hours.sbo-ovsar.ca/hours">View your records</a></p>
+<p style="color:#999;font-size:0.85em">SBO-OVSAR Hours Log · <a href="https://hours.sbo-ovsar.ca/profile">manage notifications</a></p>
 """
     send(user_email, subject, html)
 
@@ -106,8 +106,8 @@ def notify_pending_submitted(approver_email: str, approver_name: str,
   <li><strong>Category:</strong> {record.category.name if record.category else '—'}</li>
   {'<li><strong>Description:</strong> ' + record.description + '</li>' if record.description else ''}
 </ul>
-<p><a href="https://hours2.sbo-ovsar.ca/approvals">Review pending records</a></p>
-<p style="color:#999;font-size:0.85em">SBO-OVSAR Hours Log · <a href="https://hours2.sbo-ovsar.ca/profile">manage notifications</a></p>
+<p><a href="https://hours.sbo-ovsar.ca/approvals">Review pending records</a></p>
+<p style="color:#999;font-size:0.85em">SBO-OVSAR Hours Log · <a href="https://hours.sbo-ovsar.ca/profile">manage notifications</a></p>
 """
     send(approver_email, subject, html)
 
@@ -123,8 +123,8 @@ def send_weekly_summary(user_email: str, user_name: str,
   <li><strong>Records pending approval:</strong> {pending}</li>
   <li><strong>Records approved recently:</strong> {approved_week}</li>
 </ul>
-<p><a href="https://hours2.sbo-ovsar.ca/profile">View your profile</a></p>
-<p style="color:#999;font-size:0.85em">SBO-OVSAR Hours Log · <a href="https://hours2.sbo-ovsar.ca/profile">manage notifications</a></p>
+<p><a href="https://hours.sbo-ovsar.ca/profile">View your profile</a></p>
+<p style="color:#999;font-size:0.85em">SBO-OVSAR Hours Log · <a href="https://hours.sbo-ovsar.ca/profile">manage notifications</a></p>
 """
     send(user_email, subject, html)
 
@@ -143,8 +143,8 @@ def send_monthly_progress(user_email: str, user_name: str, month_name: str,
   <tr><td style="padding:4px 0;color:#555">Other</td><td style="text-align:right;font-weight:700">{other_hrs:.1f} hrs</td></tr>
   <tr style="border-top:1px solid #eee"><td style="padding:6px 0;font-weight:700">Tax Credit Total</td><td style="text-align:right;font-weight:700;color:#1a73e8">{tc_hrs:.1f} / 200 hrs ({pct}%)</td></tr>
 </table>
-<p><a href="https://hours2.sbo-ovsar.ca/profile">View your full profile</a></p>
-<p style="color:#999;font-size:0.85em">SBO-OVSAR Hours Log · <a href="https://hours2.sbo-ovsar.ca/profile">manage notifications</a></p>
+<p><a href="https://hours.sbo-ovsar.ca/profile">View your full profile</a></p>
+<p style="color:#999;font-size:0.85em">SBO-OVSAR Hours Log · <a href="https://hours.sbo-ovsar.ca/profile">manage notifications</a></p>
 """
     send(user_email, subject, html)
 
@@ -156,7 +156,7 @@ def send_tax_credit_eligible(user_email: str, user_name: str,
 <p>Hi {user_name},</p>
 <p>🎉 You've reached <strong>tax credit eligibility</strong> for {year}!</p>
 <p>Your tax credit hours are <strong>{tc_hrs:.1f} / 200</strong> and your primary hours exceed secondary — both conditions met.</p>
-<p><a href="https://hours2.sbo-ovsar.ca/profile">View your profile</a></p>
-<p style="color:#999;font-size:0.85em">SBO-OVSAR Hours Log · <a href="https://hours2.sbo-ovsar.ca/profile">manage notifications</a></p>
+<p><a href="https://hours.sbo-ovsar.ca/profile">View your profile</a></p>
+<p style="color:#999;font-size:0.85em">SBO-OVSAR Hours Log · <a href="https://hours.sbo-ovsar.ca/profile">manage notifications</a></p>
 """
     send(user_email, subject, html)
