@@ -3,7 +3,7 @@ import logging
 from datetime import datetime
 
 from authlib.integrations.flask_client import OAuth
-from flask import Blueprint, abort, redirect, session, url_for
+from flask import Blueprint, abort, redirect, request, session, url_for
 
 logger = logging.getLogger(__name__)
 oauth = OAuth()
@@ -14,6 +14,7 @@ def require_login(f):
     @functools.wraps(f)
     def decorated(*args, **kwargs):
         if 'user_id' not in session:
+            session['next'] = request.url
             return redirect(url_for('auth.login_page'))
         return f(*args, **kwargs)
     return decorated
@@ -25,6 +26,7 @@ def require_role(min_role: str):
         @functools.wraps(f)
         def decorated(*args, **kwargs):
             if 'user_id' not in session:
+                session['next'] = request.url
                 return redirect(url_for('auth.login_page'))
             if _order.get(session.get('role', ''), -1) < _order[min_role]:
                 abort(403)
@@ -100,7 +102,8 @@ def callback():
     session['display_name'] = user.display_name
     session['email'] = user.email
 
-    return redirect(url_for('hours.index'))
+    next_url = session.pop('next', None)
+    return redirect(next_url or url_for('hours.index'))
 
 
 @auth_bp.route('/auth/logout')
