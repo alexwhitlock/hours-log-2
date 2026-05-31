@@ -29,7 +29,7 @@ def index():
         total_categories=db.query(Category).filter(
             Category.is_active == True, Category.is_system == False).count(),
         total_d4h_members=db.query(User).filter(
-            User.d4h_id != None, User.d4h_status != 'Retired').count(),
+            User.d4h_id != None, User.d4h_status == 'Operational').count(),
         last_sync=last_sync,
         d4h_needs_resync_count=db.query(HoursRecord).filter_by(
             d4h_needs_resync=True).count(),
@@ -402,7 +402,7 @@ def hours_report():
     year = int(request.args.get('year', date.today().year))
 
     members = db.query(User).filter(
-        User.d4h_id != None, User.d4h_status != 'Retired').order_by(User.display_name).all()
+        User.d4h_id != None, User.d4h_status == 'Operational').order_by(User.display_name).all()
 
     from models import HoursEntry as _HE
     tool_records = (

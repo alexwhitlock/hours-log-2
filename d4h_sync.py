@@ -42,7 +42,17 @@ def _make_client(config: dict):
 
 
 def _norm_status(raw: str) -> str:
-    return raw.capitalize() if raw else 'Operational'
+    mapping = {
+        'OPERATIONAL':     'Operational',
+        'NON_OPERATIONAL': 'Non-Operational',
+        'RETIRED':         'Retired',
+        'OBSERVER':        'Observer',
+    }
+    return mapping.get((raw or '').upper(), raw.capitalize() if raw else 'Operational')
+
+
+def _is_operational(status: str) -> bool:
+    return status == 'Operational'
 
 
 # ── Activity tag cache ────────────────────────────────────────────────────────
@@ -238,24 +248,24 @@ def sync_members(config: dict, db, progress=None) -> dict:
         if existing:
             if existing.count_rolling_hours != current_rolling:
                 changed_ids.add(mid)
-            was_retired = existing.d4h_status == 'Retired'
-            is_retired = norm == 'Retired'
+            was_operational = _is_operational(existing.d4h_status or '')
+            is_operational = _is_operational(norm)
             existing.ref = m.ref or 'No Reference'
             existing.display_name = m.full_name
             existing.google_username = google_username or existing.google_username
             existing.d4h_status = norm
             existing.count_rolling_hours = current_rolling
             existing.last_synced_at = datetime.now()
-            if not was_retired and is_retired and existing.is_active:
+            if was_operational and not is_operational and existing.is_active:
                 existing.is_active = False
                 deactivated += 1
-            elif was_retired and not is_retired and not existing.is_active:
+            elif not was_operational and is_operational and not existing.is_active:
                 existing.is_active = True
                 reactivated += 1
             updated += 1
         else:
             changed_ids.add(mid)
-            if norm == 'Retired':
+            if not _is_operational(norm):
                 continue
             # Link to existing user by google_username if possible
             user = None
@@ -316,7 +326,7 @@ def sync_hours(config: dict, db, changed_member_ids=None, progress=None) -> dict
         logger.info(f'D4H sync: skipping {len(submission_event_ids)} submission event IDs')
 
     all_members = db.query(User).filter(
-        User.d4h_id != None, User.d4h_status != 'Retired'
+        User.d4h_id != None, User.d4h_status == 'Operational'
     ).all()
     if changed_member_ids is not None:
         to_sync = [m for m in all_members if m.d4h_id in changed_member_ids]
