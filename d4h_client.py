@@ -309,11 +309,6 @@ class D4HClient:
             'endsAt':   ends.strftime('%Y-%m-%dT%H:%M:%SZ'),
             'fullTeam': False,
         })
-        try:
-            self._post(f'/team/{self.team_id}/events/{event["id"]}/publish',
-                       {'published': True})
-        except Exception as e:
-            logger.warning(f'D4H: could not publish event {event["id"]}: {e}')
         tag_id = self.HOUR_TYPE_TAG.get(hour_type)
         if tag_id:
             try:
@@ -337,6 +332,13 @@ class D4HClient:
             'endsAt':     end_dt.strftime('%Y-%m-%dT%H:%M:%SZ'),
             'status':     'ATTENDING',
         })
+
+    def set_event_published(self, event_id: int, published: bool) -> None:
+        try:
+            self._post(f'/team/{self.team_id}/events/{event_id}/publish',
+                       {'published': published})
+        except Exception as e:
+            logger.warning(f'D4H: could not set event {event_id} published={published}: {e}')
 
     def patch_submission_attendance(self, attendance_id: int,
                                     total_hours: float, year: int, month: int) -> dict:

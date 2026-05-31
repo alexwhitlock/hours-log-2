@@ -74,13 +74,22 @@ def _push_group(db, client, records: list, year: int, month: int,
             (int(r.d4h_record_id) for r in records if r.d4h_record_id), None
         )
         if existing_att_id:
+            from models import D4HSubmissionEvent, HourType
+            sub_event = db.query(D4HSubmissionEvent).filter_by(
+                year=year, month=month, hour_type=HourType(hour_type),
+            ).first()
+            if sub_event:
+                client.set_event_published(sub_event.d4h_event_id, False)
             client.patch_submission_attendance(existing_att_id, total_hours, year, month)
+            if sub_event:
+                client.set_event_published(sub_event.d4h_event_id, True)
             att_id = str(existing_att_id)
         else:
             sub_event = _get_or_create_event(db, client, year, month, hour_type)
             att = client.create_submission_attendance(
                 sub_event.d4h_event_id, member_d4h_id, total_hours, year, month,
             )
+            client.set_event_published(sub_event.d4h_event_id, True)
             att_id = str(att['id'])
 
         for r in records:
