@@ -17,7 +17,15 @@
 
 {% if entries %}
 <div class="table-wrap desktop-only">
-  <table>
+  <table style="table-layout:fixed;width:100%">
+    <colgroup>
+      <col style="width:14%">
+      <col style="width:11%">
+      <col style="width:7%">
+      <col style="width:15%">
+      <col style="width:auto">
+      <col style="width:13%">
+    </colgroup>
     <thead>
       <tr><th>Member</th><th>Date</th><th>Hours</th><th>Category</th><th>Description</th><th>Status</th></tr>
     </thead>
@@ -28,7 +36,7 @@
         <td style="white-space:nowrap">{{ e.date.strftime('%b %d, %Y') }}</td>
         <td style="font-weight:600">{{ '%.1f'|format(e.hours|float) }}</td>
         <td>{{ e.category.name }}</td>
-        <td style="font-size:0.85rem">{{ e.description or '—' }}</td>
+        <td style="font-size:0.85rem;word-wrap:break-word">{{ e.description or '—' }}</td>
         <td><span class="badge badge-{{ e.status.value }}">{{ e.status.value|status_label }}</span></td>
       </tr>
       {% endfor %}
