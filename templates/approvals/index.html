@@ -65,7 +65,7 @@
         <td>{{ e.category.name }}</td>
         <td style="font-weight:600">{{ '%.1f'|format(e.hours|float) }}</td>
         <td style="font-size:0.85rem">{{ e.description or '—' }}</td>
-        <td>{% for r in e.records %}<span class="people-pill">{{ r.user.display_name }}</span>{% endfor %}</td>
+        <td style="font-size:0.85rem">{% for r in e.records %}{{ r.user.display_name }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
         <td style="white-space:nowrap">
           <a href="/approvals/{{ e.id }}/review" class="btn btn-outline btn-sm">Edit</a>
           <form method="POST" action="/approvals/{{ e.id }}/approve" style="display:inline">
