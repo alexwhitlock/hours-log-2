@@ -6,7 +6,7 @@
   <h2 style="font-size:18px;margin-bottom:8px;color:#c5221f">
     {{ 'Access Denied' if code == 403 else 'Not Found' }}
   </h2>
-  <p style="font-size:14px;color:#5f6368;margin-bottom:24px">{{ message }}</p>
+  <p style="font-size:14px;color:#5f6368;margin-bottom:24px">{{ message | safe }}</p>
   <a href="/hours" class="btn btn-outline">Go to My Hours</a>
 </div>
 {% endblock %}

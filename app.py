@@ -141,7 +141,16 @@ def create_app() -> Flask:
 
     @app.errorhandler(403)
     def forbidden(e):
-        return render_template('error.html', code=403, message=str(e.description)), 403
+        desc = str(e.description)
+        if desc == 'no_d4h_match':
+            return render_template('error.html', code=403,
+                message='Your Google account is not linked to a D4H member. '
+                        'Please contact <a href="mailto:systems@sbo-ovsar.ca">systems@sbo-ovsar.ca</a> to get access.'), 403
+        if desc == 'deactivated':
+            return render_template('error.html', code=403,
+                message='Your account has been deactivated. '
+                        'Please contact <a href="mailto:systems@sbo-ovsar.ca">systems@sbo-ovsar.ca</a> if you think this is an error.'), 403
+        return render_template('error.html', code=403, message=desc), 403
 
     @app.errorhandler(404)
     def not_found(e):

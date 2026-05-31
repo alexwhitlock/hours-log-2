@@ -69,16 +69,10 @@ def callback():
             user.google_sub = google_sub
 
     if not user:
-        user = User(
-            google_sub=google_sub,
-            google_username=google_username,
-            display_name=display_name,
-            role=UserRole.member,
-        )
-        db.add(user)
+        abort(403, 'no_d4h_match')
     else:
         if not user.is_active:
-            abort(403, 'Your account has been deactivated.')
+            abort(403, 'deactivated')
         user.google_username = google_username
 
     user.display_name = display_name
